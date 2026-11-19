@@ -1,0 +1,16 @@
+<h2>Criptomoedas <span class="mini texto-2">Mercado 24 horas · {{ lista|length }} ativos acompanhados</span></h2>
+<p class="nota">Variação de 1 dia corresponde às últimas 24 horas da exchange. A leitura técnica é avaliada separadamente das ações.</p>
+<div class="barra-tabela"><div class="filtros-rapidos">{% for k, rot in periodos %}<a class="chip{% if k == periodo %} ativo{% endif %}" href="?periodo={{ k }}">{{ rot }}</a>{% endfor %}</div>
+<input type="search" class="busca-mini" data-busca aria-label="Buscar criptomoeda" placeholder="Nome ou símbolo…"></div>
+<div class="rankings">
+<section><h3 class="alta">Maiores altas — {{ periodo_rotulo }}</h3>{% include "mercado/_tabela_ranking.html" with linhas=altas vazio="Nenhuma alta no período." %}</section>
+<section><h3 class="queda">Maiores quedas — {{ periodo_rotulo }}</h3>{% include "mercado/_tabela_ranking.html" with linhas=quedas vazio="Nenhuma queda no período." %}</section>
+</div>
+<h3>Todos os criptoativos</h3>
+<div class="rolagem-x"><table class="tabela ordenavel" data-busca-alvo>
+<thead><tr><th data-sort="txt">Ativo</th><th>Preço e atualização</th><th>Leitura técnica e cobertura</th><th>Risco</th></tr></thead><tbody>
+{% for x in lista %}<tr data-busca="{{ x.asset.symbol|lower }} {{ x.asset.name|lower }}">
+<td>{% include "mercado/_ativo_celula.html" %}</td><td>{{ x.preco|preco:x.moeda }}<br>{% include "mercado/_atualidade.html" %}</td>
+<td>{% include "mercado/_score.html" %}</td><td>{{ x.score.risco|default:"histórico insuficiente" }}</td></tr>
+{% empty %}<tr><td colspan="4">Nenhuma criptomoeda cadastrada. Adicione ativos em Universo.</td></tr>{% endfor %}
+</tbody></table></div>

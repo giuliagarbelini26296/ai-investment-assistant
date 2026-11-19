@@ -1,0 +1,103 @@
+{% comment %}Miolo do painel de alertas: recarregado ao vivo por portal.js.{% endcomment %}
+<div class="aviso">{{ texto }} Cada alerta mostra a regra, o limite e os valores observados; a classificação é o rótulo que você escolheu ao criar a regra.</div>
+
+<div class="fragmento-meta" data-ativos="{{ ativos|length }}" data-nao-vistos="{{ nao_vistos }}" data-agora="{{ agora|date:'c' }}" hidden></div>
+<h2>Ativos ({{ ativos|length }}){% if nao_vistos %} <span class="contador">{{ nao_vistos }} não visto(s)</span>{% endif %}</h2>
+{% if ativos %}
+<form method="post" action="{% url 'alertas_vistos' %}" class="acao-rapida" data-recarregar="1">
+{% csrf_token %}
+<table class="tabela tabela-alertas">
+  <thead><tr><th></th><th>Disparo</th><th>Ativo</th><th>Regra</th><th>Classificação</th><th>Valores observados</th><th>Fonte / horários</th><th>Ações</th></tr></thead>
+  <tbody>
+  {% for a in ativos %}
+    <tr class="{% if not a.seen_at and not a.esta_silenciado %}nao-visto{% endif %}{% if a.esta_silenciado %} silenciado{% endif %}">
+      <td>{% if not a.seen_at %}<input type="checkbox" name="ids" value="{{ a.pk }}" aria-label="marcar visto">{% else %}<span class="texto-2" title="visto em {{ a.seen_at|date:'d/m H:i' }}">✓</span>{% endif %}</td>
+      <td>{{ a.triggered_at|date:"d/m/Y H:i" }}</td>
+      <td><a href="{% url 'asset_detail' a.asset.pk %}">{{ a.asset.symbol }}</a> <span class="texto-2">{{ a.asset.native_currency }}</span></td>
+      <td>{{ a.version.rule.name }}<br><span class="texto-2">{{ a.version.descricao }} (v{{ a.version.number }}{% if not a.version.rule.asset_id %}, global{% endif %})</span></td>
+      <td><span class="badge badge-{{ a.classification }}">{{ a.get_classification_display }}</span></td>
+      <td class="valores">
+        preço {{ a.observed.preco|moeda:a.observed.moeda_cotacao }} · médio {{ a.observed.preco_medio|moeda:a.asset.native_currency }}
+        {% if a.observed.retorno_pct %}<br>retorno desde a compra {{ a.observed.retorno_pct|pct }}{% endif %}
+        {% if a.observed.variacao_pct %}<br>variação dia/24 h {{ a.observed.variacao_pct|pct }}{% endif %}
+        <br>limite {{ a.limite|normalize_decimal }}{% if a.version.family != "preco_absoluto" %}%{% endif %}
+      </td>
+      <td class="texto-2">{{ a.observed.fonte }} · {{ a.observed.tipo_cotacao }}<br>coleta {{ a.observed.horario_coleta|slice:":16" }}{% if a.observed.horario_mercado %}<br>mercado {{ a.observed.horario_mercado|slice:":16" }}{% endif %}</td>
+      <td class="acoes-alerta">
+        {% if a.esta_silenciado %}<span class="badge" title="até {{ a.silenced_until|date:'d/m H:i' }}">🔕 silenciado</span>{% else %}<button type="button" class="chip acao-js" data-url="{% url 'alerta_silenciar' a.pk %}" data-campo="horas" data-valor="24" title="esconde o destaque por 24 h; a regra continua">🔕 24 h</button>{% endif %}
+        <details class="ajuste-inline"><summary class="chip">✏️ limite</summary>
+          <div class="ajuste-form" data-url="{% url 'regra_limite' a.version.rule_id %}">
+            <input type="text" inputmode="decimal" value="{{ a.limite|normalize_decimal }}" aria-label="novo limite" size="8"><span>{% if a.version.family != "preco_absoluto" %}%{% else %}{{ a.version.currency }}{% endif %}</span>
+            <button type="button" class="botao acao-ajuste">Aplicar</button>
+          </div>
+        </details>
+        <button type="button" class="chip acao-js" data-url="{% url 'regra_desativar' a.version.rule_id %}" data-confirmar="Pausar a regra '{{ a.version.rule.name|escapejs }}'? Os alertas dela são resolvidos.">⏸ pausar regra</button>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p><button type="submit" class="botao">Marcar selecionados como vistos</button> <span class="nota">Vistos continuam ativos até a condição deixar de valer. "🔕 24 h" só esconde o destaque; "✏️ limite" cria uma nova versão da regra; "⏸" pausa a regra.</span></p>
+</form>
+{% else %}
+<p class="estado">Nenhum alerta ativo.</p>
+{% endif %}
+
+{% if suspensos %}
+<h2>Avaliações suspensas ({{ suspensos|length }})</h2>
+<table class="tabela">
+  <thead><tr><th>Ativo</th><th>Regra</th><th>Motivo</th></tr></thead>
+  <tbody>{% for s in suspensos %}<tr><td>{{ s.asset.symbol }}</td><td>{{ s.version.rule.name }} — {{ s.version.descricao }}</td><td class="texto-2">{{ s.suspended_reason }}</td></tr>{% endfor %}</tbody>
+</table>
+<p class="nota">Suspensa = sem dado válido para avaliar (desatualizado, calendário desconhecido, sem cotação ou sem posição). Não resolve nem rearma o alerta.</p>
+{% endif %}
+
+<h2>Avisos fora do portal</h2>
+{% if canais %}
+<p class="nota">Canais ativos: {% for c in canais %}<strong>{{ c|capfirst }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}. Cada alerta disparado gera um aviso por canal; o envio acontece no ciclo do coletor.</p>
+{% if notificacoes %}
+<table class="tabela">
+  <thead><tr><th>Quando</th><th>Canal</th><th>Alerta</th><th>Estado</th></tr></thead>
+  <tbody>{% for n in notificacoes %}<tr><td>{{ n.created_at|date:"d/m H:i" }}</td><td>{{ n.get_channel_display }}</td><td>{{ n.alert.asset.symbol }} — {{ n.alert.version.descricao }}</td><td>{{ n.get_status_display }}{% if n.sent_at %} {{ n.sent_at|date:"d/m H:i" }}{% endif %}{% if n.last_error %}<br><span class="texto-2">{{ n.last_error }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+{% else %}
+<p class="nota">Nenhum canal externo configurado: os avisos aparecem apenas nesta página. Para receber no Telegram ou como notificação do macOS, veja <code>docs/alertas.md</code>.</p>
+{% endif %}
+
+<h2>Regras ({{ regras|length }})</h2>
+{% if regras %}
+<table class="tabela">
+  <thead><tr><th>Nome</th><th>Escopo</th><th>Condição (versão atual)</th><th>Classificação</th><th>Versões</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for r in regras %}
+    {% with v=r.versao_atual %}
+    <tr class="{% if not r.is_active %}cancelado{% endif %}">
+      <td>{{ r.name }}</td>
+      <td>{% if r.asset %}{{ r.asset.symbol }}{% else %}global{% endif %}</td>
+      <td>{{ v.descricao }}</td>
+      <td>{{ v.get_classification_display }}</td>
+      <td title="{% for ver in r.versions.all %}v{{ ver.number }} {{ ver.descricao }} ({{ ver.created_at|date:'d/m H:i' }}{% if ver.reason %}: {{ ver.reason }}{% endif %})&#10;{% endfor %}">v{{ r.current_version }}</td>
+      <td>{% if r.is_active %}ativa{% else %}pausada{% endif %}</td>
+      <td class="acoes-linha">
+        {% if r.is_active %}<a href="{% url 'regra_editar' r.pk %}">editar</a> <form method="post" action="{% url 'regra_desativar' r.pk %}" class="acao-rapida">{% csrf_token %}<button type="submit" class="link">pausar</button></form>
+        {% else %}<form method="post" action="{% url 'regra_reativar' r.pk %}" class="acao-rapida">{% csrf_token %}<button type="submit" class="link">reativar</button></form>{% endif %}
+      </td>
+    </tr>
+    {% endwith %}
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="estado">Nenhum alerta configurado. <a href="{% url 'regra_nova' %}">Crie o primeiro</a> — ex.: "me avise quando BTC cair 5% no dia".</p>
+{% endif %}
+
+<h2>Histórico (últimos {{ historico|length }} resolvidos)</h2>
+{% if historico %}
+<table class="tabela">
+  <thead><tr><th>Disparo</th><th>Resolvido</th><th>Ativo</th><th>Regra</th><th>Classificação</th><th>Preço no disparo</th></tr></thead>
+  <tbody>{% for a in historico %}<tr><td>{{ a.triggered_at|date:"d/m/Y H:i" }}</td><td>{{ a.resolved_at|date:"d/m/Y H:i" }}</td><td>{{ a.asset.symbol }}</td><td>{{ a.version.rule.name }} — {{ a.version.descricao }} (v{{ a.version.number }})</td><td>{{ a.get_classification_display }}</td><td>{{ a.observed.preco|moeda:a.observed.moeda_cotacao }}</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}
+<p class="estado">Nenhum alerta resolvido ainda.</p>
+{% endif %}

@@ -1,0 +1,1 @@
+{% with d=l.dados_totais %}{% if d %}data-total-moeda="{{ d.moeda }}" data-total-investido="{{ d.investido|bruto }}" data-total-valor="{{ d.valor|bruto }}" data-total-resultado="{{ d.resultado|bruto }}" data-total-dia="{{ d.dia|bruto }}" data-total-dia-base="{{ d.dia_base|bruto }}"{% endif %}{% endwith %}

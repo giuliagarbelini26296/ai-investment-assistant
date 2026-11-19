@@ -1,0 +1,136 @@
+{% extends "ui/base.html" %}
+{% block title %}{{ titulo }} · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<h1>{{ titulo }}</h1>
+{% if rule %}<p class="nota">Editar cria a versão {{ rule.current_version|add:1 }} da regra; o estado é reiniciado e alertas ativos da versão anterior são resolvidos.</p>{% endif %}
+
+<form method="post" class="formulario alerta-simples" id="form-alerta">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+
+  <div class="atalhos">
+    <span class="texto-2">Atalhos:</span>
+    {% for a in atalhos %}
+      <button type="button" class="chip" data-tipo="{{ a.tipo }}" data-valor="{{ a.valor }}"{% if a.ativo %} data-ativo="{{ a.ativo }}"{% endif %}>{{ a.rotulo }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="frase">
+    <span>Me avise quando</span>
+    <span class="campo-inline{% if form.asset.errors %} com-erro{% endif %}">{{ form.asset }}</span>
+    <span class="campo-inline{% if form.tipo.errors %} com-erro{% endif %}">{{ form.tipo }}</span>
+    <span class="campo-inline campo-valor{% if form.valor.errors %} com-erro{% endif %}">
+      <span class="prefixo-moeda" id="prefixo-moeda" hidden>{{ form.currency }}</span>
+      {{ form.valor }}
+      <span class="sufixo" id="sufixo-pct">%</span>
+      <script type="application/json" id="unidades-tipo">{{ unidades|safe_json }}</script>
+    </span>
+  </div>
+  {{ form.asset.errors }}{{ form.tipo.errors }}{{ form.valor.errors }}{{ form.currency.errors }}
+
+  <p class="previa" id="previa"></p>
+  <div class="previa-regra" id="previa-regra" data-url="{% url 'regra_previa' %}" hidden></div>
+
+  <details class="avancado" {% if form.name.value or form.reason.value %}open{% endif %}>
+    <summary>Opções avançadas</summary>
+    <div class="campo">{{ form.name.label_tag }} {{ form.name }}<small>Se vazio, o nome é a própria frase.</small>{{ form.name.errors }}</div>
+    <div class="campo">{{ form.classification.label_tag }} {{ form.classification }}<small>É só um rótulo seu; o portal nunca classifica por conta própria.</small>{{ form.classification.errors }}</div>
+    <div class="campo">{{ form.reason.label_tag }} {{ form.reason }}{{ form.reason.errors }}</div>
+  </details>
+
+  <p class="nota">
+    O alerta é avaliado a cada coleta com o último preço válido (sinais de mercado usam também os candles diários, o calendário de resultados e as recomendações de analistas); dispara quando a condição passa a valer e some quando deixa de valer. A mesma regra no mesmo ativo não manda nova mensagem antes de 6 h.
+    {% if canais %}Aviso enviado por: {% for c in canais %}{{ c|capfirst }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% else %}Nenhum canal externo configurado — os avisos aparecem só aqui no portal (veja <code>docs/alertas.md</code> para Telegram e macOS).{% endif %}
+    {{ texto_nao_recomendacao }}
+  </p>
+  <div class="acoes"><button type="submit" class="botao">Salvar alerta</button> <a href="{% url 'alertas' %}">Cancelar</a></div>
+</form>
+
+<script>
+(function () {
+  var form = document.getElementById("form-alerta");
+  var tipo = form.querySelector("[name=tipo]");
+  var valor = form.querySelector("[name=valor]");
+  var ativo = form.querySelector("[name=asset]");
+  var moeda = form.querySelector("[name=currency]");
+  var prefixo = document.getElementById("prefixo-moeda");
+  var sufixo = document.getElementById("sufixo-pct");
+  var previa = document.getElementById("previa");
+  var absoluto = { abaixo: true, acima: true };
+  var unidades = {};
+  try { unidades = JSON.parse(document.getElementById("unidades-tipo").textContent || "{}"); } catch (e) { unidades = {}; }
+
+  function atualizar() {
+    var abs = !!absoluto[tipo.value];
+    prefixo.hidden = !abs;
+    sufixo.hidden = abs;
+    sufixo.textContent = unidades[tipo.value] || "%";
+    valor.placeholder = abs ? "ex.: 100.000" : (unidades[tipo.value] === "sessões" ? "ex.: 20" : unidades[tipo.value] === "dias" ? "ex.: 7" : "ex.: 5");
+    var quem = ativo.value ? ativo.options[ativo.selectedIndex].text : "qualquer ativo da carteira";
+    var v = valor.value || "…";
+    var frases = {
+      queda_dia: "cair " + v + "% no dia (24 h)",
+      alta_dia: "subir " + v + "% no dia (24 h)",
+      queda_compra: "cair " + v + "% em relação ao que paguei",
+      alta_compra: "subir " + v + "% em relação ao que paguei",
+      abaixo: "ficar abaixo de " + (moeda.value === "BRL" ? "R$ " : "US$ ") + v,
+      acima: "ficar acima de " + (moeda.value === "BRL" ? "R$ " : "US$ ") + v,
+      perto_min52: "ficar a até " + v + "% acima da mínima de 52 semanas",
+      rompe_suporte: "romper o suporte (mínima das últimas " + v + " sessões)",
+      rompe_resist: "romper a resistência (máxima das últimas " + v + " sessões)",
+      resultado: "estiver a até " + v + " dias de divulgar resultado trimestral",
+      recomendacao: "tiver a fatia de recomendações de compra alterada em " + v + " p.p. ou mais"
+    };
+    previa.textContent = "Resumo: avisar quando " + quem + " " + (frases[tipo.value] || "") + ".";
+    agendarPrevia();
+  }
+  // Simulador: quais ativos já disparariam com a última cotação e a distância até o limite.
+  var caixa = document.getElementById("previa-regra");
+  var timer = null;
+  function agendarPrevia() { clearTimeout(timer); timer = setTimeout(carregarPrevia, 350); }
+  function carregarPrevia() {
+    if (!caixa || !valor.value) { if (caixa) { caixa.hidden = true; } return; }
+    var params = new URLSearchParams({ tipo: tipo.value, valor: valor.value, currency: moeda.value });
+    if (ativo.value) { params.set("ativo", ativo.value); }
+    fetch(caixa.getAttribute("data-url") + "?" + params.toString(), { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.itens || !d.itens.length) { caixa.hidden = true; return; }
+        var abs = !!absoluto[tipo.value];
+        var linhas = d.itens.map(function (i) {
+          if (i.estado === "sem_dado" || i.estado === "nao_avaliavel") {
+            return "<tr><td>" + i.simbolo + "</td><td colspan=\"3\" class=\"texto-2\">" + i.detalhe + "</td></tr>";
+          }
+          if (i.atual === undefined) {
+            var est = i.estado === "dispararia" ? "<span class=\"dispararia\">dispararia agora</span>" : "não dispararia";
+            return "<tr><td><strong>" + i.simbolo + "</strong></td><td colspan=\"2\" class=\"texto-2\">" + i.detalhe + "</td><td>" + est + "</td></tr>";
+          }
+          var un = i.unidade === "%" ? "%" : " " + i.unidade;
+          var atualTxt = (abs ? "" : (parseFloat(i.atual) > 0 ? "+" : "")) + i.atual.replace(".", ",") + un;
+          var dist = Math.abs(parseFloat(i.distancia));
+          var distTxt = dist.toFixed(2).replace(".", ",") + (i.unidade === "%" ? " p.p." : " " + i.unidade);
+          var estado = i.estado === "dispararia" ? "<span class=\"dispararia\">dispararia agora</span>" : "faltam " + distTxt;
+          return "<tr><td><strong>" + i.simbolo + "</strong> <span class=\"texto-2\">" + i.atualidade + "</span></td><td class=\"num\">" + atualTxt + "</td><td class=\"num\">" + i.alvo.replace(".", ",") + un + "</td><td>" + estado + "</td></tr>";
+        });
+        var n = d.itens.filter(function (i) { return i.estado === "dispararia"; }).length;
+        caixa.innerHTML = "<strong>Com os preços de agora:</strong> " + (n ? n + " ativo(s) já disparariam" : "nenhum ativo dispararia") +
+          "<table><thead><tr><th>Ativo</th><th class=\"num\">Agora</th><th class=\"num\">Limite</th><th>Situação</th></tr></thead><tbody>" + linhas.join("") + "</tbody></table>" +
+          "<span class=\"texto-2\">Prévia com a última cotação válida de cada ativo; não grava nada. " + d.texto + "</span>";
+        caixa.hidden = false;
+      })
+      .catch(function () { caixa.hidden = true; });
+  }
+  form.querySelectorAll(".chip").forEach(function (b) {
+    b.addEventListener("click", function () {
+      tipo.value = b.dataset.tipo;
+      valor.value = b.dataset.valor;
+      if (b.dataset.ativo) { ativo.value = b.dataset.ativo; }
+      if (b.dataset.tipo === "abaixo" || b.dataset.tipo === "acima") { moeda.value = b.dataset.ativo && ativo.options[ativo.selectedIndex].text.indexOf("USDBRL") === 0 ? "BRL" : "USD"; }
+      atualizar();
+    });
+  });
+  [tipo, valor, ativo, moeda].forEach(function (el) { el.addEventListener("input", atualizar); el.addEventListener("change", atualizar); });
+  atualizar();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+<p class="nota ranking-method">Ranking dos ativos monitorados pelo portal; não representa toda a bolsa. Brasil, EUA e cripto podem ter referências de horários diferentes: confira o pregão, a fonte e a coleta de cada linha. Cotações vencidas ou sem referência diária confirmada ficam fora das listas. Sem movimento (0%) não entra em altas ou quedas.</p>
+<h2>Seu dia no mercado</h2>
+<div class="grade-2">
+<section class="cartao"><h3>Seus favoritos</h3><ul class="itens">
+{% for x in favoritos_resumo %}<li><a href="{% url 'asset_detail' x.asset.pk %}">{{ x.asset.symbol }}</a> · {{ x.preco|preco:x.moeda }} · <span class="{{ x.variacao_dia|sinal_classe }}">{{ x.variacao_dia|pct }}</span><br>{% include "mercado/_atualidade.html" %}</li>{% empty %}<li>Adicione ativos para personalizar este resumo.</li>{% endfor %}
+</ul><a href="{% url 'favoritos' %}">Ver todos os favoritos →</a></section>
+<section class="cartao"><h3>Alertas</h3><p>{{ alertas_resumo|length }} ativo(s) com alerta ativo.</p><a href="{% url 'alertas' %}">Consultar alertas →</a><p class="nota">Consulte também os horários e as fontes de cada cotação.</p></section>
+</div>
+<p class="nota">Movimentos: último pregão para ações e últimas 24 horas para cripto. <a href="{% url 'mercado_rankings' %}">Ver rankings, fontes e horários</a></p>
+{% include "mercado/_mercado_filtro.html" %}
+<div class="grade-2"><section><h3 class="alta">Maiores altas</h3><ul class="itens">{% for x, p in ranking.altas|slice:":5" %}<li><a href="{% url 'asset_detail' x.asset.pk %}">{{ x.asset.symbol }}</a> {{ p.variacao_pct|pct }}<br><small class="texto-2">{{ x.day_reference_label }} · {{ x.fonte_preco }} · coleta {{ x.cotado_em|date:"d/m H:i" }}</small></li>{% empty %}<li>Sem altas disponíveis.</li>{% endfor %}</ul></section>
+<section><h3 class="queda">Maiores quedas</h3><ul class="itens">{% for x, p in ranking.quedas|slice:":5" %}<li><a href="{% url 'asset_detail' x.asset.pk %}">{{ x.asset.symbol }}</a> {{ p.variacao_pct|pct }}<br><small class="texto-2">{{ x.day_reference_label }} · {{ x.fonte_preco }} · coleta {{ x.cotado_em|date:"d/m H:i" }}</small></li>{% empty %}<li>Sem quedas disponíveis.</li>{% endfor %}</ul></section></div>
+<details class="metodologia"><summary>Resumo executivo completo · fatos, riscos e analistas</summary>
+{% include "mercado/_resumo_executivo.html" %}</details>
+<details class="metodologia"><summary>Oportunidades — abrir critérios e classificação</summary>
+
+<h2>Top 10 Oportunidades do Mercado <span class="mini texto-2">— pela régua do portal; <a href="{% url 'mercado_oportunidades' %}">ver todos e os critérios</a></span></h2>
+{% include "mercado/_tabela_top10.html" %}</details>
+
+<div class="grade-2">
+  <section>
+    <h2>Dólar comercial</h2>
+    <div class="cartao">
+    <div class="rotulo">USD/BRL <a class="mini" href="{% url 'mercado_dolar' %}">painel completo →</a></div>
+    {% with p=painel_dolar %}
+    {% if p.atual %}
+      <div class="valor">R$ {{ p.atual|numero:4 }} <span class="{{ p.variacao_dia_pct|sinal_classe }} mini">{{ p.variacao_dia_pct|pct }}</span></div>
+      <div class="mini texto-2">máx. {{ p.maxima_dia|numero:4 }} · mín. {{ p.minima_dia|numero:4 }} · {{ p.fonte_atual }}, referência {% if p.horario %}{{ p.horario|date:"d/m H:i" }}{% else %}{{ p.coletado_em|date:"d/m H:i" }}{% endif %}</div>
+      <div class="mini">PTAX 7 dias <span class="{{ p.var_7d_pct|sinal_classe }}">{{ p.var_7d_pct|pct }}</span> · 30 dias <span class="{{ p.var_30d_pct|sinal_classe }}">{{ p.var_30d_pct|pct }}</span>{% if p.tendencia %} · tendência {{ p.tendencia }}{% endif %}</div>
+    {% else %}<div class="texto-2">sem câmbio intradiário coletado ainda</div>{% endif %}
+    {% endwith %}
+  </div>
+  </section>
+  <section>
+    <h2>Setores — variação média em 1 mês</h2>
+    {% if resumo.setores %}
+    <table class="tabela mini"><thead><tr><th>Setor (cadastro)</th><th class="num">Média 1 mês</th><th class="num">Ativos</th></tr></thead><tbody>
+      {% for nome, media, n in resumo.setores %}<tr><td>{{ nome }}</td><td class="num {{ media|sinal_classe }}">{{ media|pct:1 }}</td><td class="num">{{ n }}</td></tr>{% endfor %}
+    </tbody></table>
+    <p class="nota">Média simples dos ativos do universo em cada setor; não é índice setorial.</p>
+    {% else %}<p class="estado">Sem histórico de 1 mês ainda.</p>{% endif %}
+  </section>
+</div>
+<p class="nota">Atualizado em {{ agora|date:"d/m/Y H:i" }}. Ações fora da carteira atualizam por rodízio (~1 h, plano gratuito da Twelve Data); cripto a cada 5–15 min; dólar comercial a cada 15 min em horário comercial.</p>

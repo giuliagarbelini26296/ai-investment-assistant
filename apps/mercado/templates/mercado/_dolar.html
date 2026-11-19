@@ -1,0 +1,61 @@
+{% with p=p %}
+<div class="cartoes heroi">
+  <div class="cartao destaque">
+    <div class="rotulo">Dólar comercial agora {% include "mercado/_estrela.html" with asset=dolar %}</div>
+    {% if p.atual %}
+      <div class="valor">R$ {{ p.atual|numero:4 }}</div>
+      <div class="nota">compra {{ p.atual|numero:4 }}{% if p.venda %} · venda {{ p.venda|numero:4 }}{% endif %} · {{ p.fonte_atual }} (atraso não declarado pela fonte)<br>referência {% if p.horario %}{{ p.horario|date:"d/m/Y H:i" }}{% else %}—{% endif %} · coletado {{ p.coletado_em|date:"d/m H:i" }}</div>
+    {% else %}<div class="valor texto-2">indisponível</div><div class="nota">o câmbio intradiário é coletado em dias úteis, 09h–18h</div>{% endif %}
+  </div>
+  <div class="cartao"><div class="rotulo">Variação no dia</div><div class="valor {{ p.variacao_dia_pct|sinal_classe }}">{{ p.variacao_dia_pct|pct }}</div><div class="nota">comercial ({{ p.fonte_atual|default:"—" }})</div></div>
+  <div class="cartao"><div class="rotulo">Máxima / mínima do dia</div><div class="valor">{{ p.maxima_dia|numero:4 }} <span class="texto-2">/</span> {{ p.minima_dia|numero:4 }}</div><div class="nota">comercial ({{ p.fonte_atual|default:"—" }})</div></div>
+  <div class="cartao"><div class="rotulo">7 dias · 30 dias</div><div class="valor"><span class="{{ p.var_7d_pct|sinal_classe }}">{{ p.var_7d_pct|pct }}</span> · <span class="{{ p.var_30d_pct|sinal_classe }}">{{ p.var_30d_pct|pct }}</span></div><div class="nota">PTAX {{ p.ptax_data|date:"d/m" }} ({{ p.ptax|numero:4 }}) vs. {{ p.base_7d|date:"d/m" }} e {{ p.base_30d|date:"d/m" }}</div></div>
+</div>
+
+<section class="cartao">
+  <div class="barra-grafico">
+    <strong>Histórico (PTAX de fechamento, BCB)</strong>
+    <span class="espaco"></span>
+    <a class="chip{% if dias == 30 %} ativo{% endif %}" href="?dias=30">1M</a>
+    <a class="chip{% if dias == 90 %} ativo{% endif %}" href="?dias=90">3M</a>
+    <a class="chip{% if dias == 182 %} ativo{% endif %}" href="?dias=182">6M</a>
+    <a class="chip{% if dias == 365 %} ativo{% endif %}" href="?dias=365">1A</a>
+    <a class="chip{% if dias == 730 %} ativo{% endif %}" href="?dias=730">2A</a>
+  </div>
+  <div class="grafico alto"><canvas id="grafico-dolar" aria-label="gráfico do dólar"></canvas></div>
+  <script type="application/json" id="dados-dolar">{{ serie_json|safe_json }}</script>
+  <p class="nota">{% if p.tendencia %}Tendência técnica pelo PTAX: <strong>{{ p.tendencia }}</strong> (média de 20 dias R$ {{ p.mm20|numero:4 }} vs. 60 dias R$ {{ p.mm60|numero:4 }}; "alta"/"baixa" quando a diferença passa de 0,5%). Leitura do passado, não previsão.{% else %}Tendência: histórico PTAX insuficiente (mínimo 60 datas).{% endif %}</p>
+  {% if intradia_json %}
+  <h3 class="mini">Hoje (comercial, a cada coleta)</h3>
+  <div class="grafico baixo"><canvas id="grafico-dolar-intradia"></canvas></div>
+  <script type="application/json" id="dados-dolar-intradia">{{ intradia_json|safe_json }}</script>
+  {% endif %}
+</section>
+
+<div class="grade-2">
+  <section>
+    <h2>Expectativas de mercado (Focus/BCB)</h2>
+    {% include "mercado/_estado_coleta.html" with estado=estado_focus nome="Focus" %}
+    {% if p.focus %}
+    <table class="tabela mini"><thead><tr><th>Fim de</th><th class="num">Mediana</th><th class="num">Média</th><th class="num">Mín. – máx.</th><th class="num">Respondentes</th></tr></thead><tbody>
+      {% for f in p.focus %}<tr><td>{{ f.data_referencia }}</td><td class="num"><strong>R$ {{ f.mediana|numero:2 }}</strong></td><td class="num">{{ f.media|numero:2 }}</td><td class="num">{{ f.minimo|numero:2 }} – {{ f.maximo|numero:2 }}</td><td class="num">{{ f.respondentes|default:"—" }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% if p.atual and p.focus.0.mediana %}<p class="mini">Hoje o comercial está em R$ {{ p.atual|numero:4 }}; a mediana para o fim de {{ p.focus.0.data_referencia }} é R$ {{ p.focus.0.mediana|numero:2 }} — o mercado projeta, em mediana, {% if p.focus.0.mediana > p.atual %}valorização{% else %}desvalorização{% endif %} do dólar até lá. É expectativa de instituições, não certeza.</p>{% endif %}
+    {% if focus_json %}<div class="grafico baixo"><canvas id="grafico-focus"></canvas></div><script type="application/json" id="dados-focus">{{ focus_json|safe_json }}</script><p class="nota">Evolução da mediana para o fim do ano corrente nas últimas pesquisas.</p>{% endif %}
+    <p class="nota">Pesquisa Focus de {{ p.focus.0.data|date:"d/m/Y" }} (base: últimos 30 dias). Fonte: Banco Central do Brasil, dados abertos.</p>
+    {% elif estado_focus.estado != "falha" %}<p class="estado">Expectativas ainda não coletadas (o coletor busca uma vez por dia a partir das 9h).</p>{% endif %}
+  </section>
+  <section>
+    <h2>Notícias que podem influenciar o câmbio</h2>
+    {% if p.noticias %}
+    <ul class="noticias">{% for n in p.noticias %}<li><a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a><br><span class="mini texto-2">{{ n.publisher|default:n.source }} · {{ n.published_at|date:"d/m H:i" }} · via {{ n.source }}</span></li>{% endfor %}</ul>
+    <p class="nota">Notícias gerais de câmbio da Finnhub (em inglês, não específicas do real). O portal não classifica sentimento.</p>
+    {% else %}<p class="estado">Sem notícias: precisa da chave Finnhub no .env.</p>{% endif %}
+    <h2>Alertas do dólar</h2>
+    {% if regras_dolar %}<ul>{% for r in regras_dolar %}<li>{{ r.name }}</li>{% endfor %}</ul>{% endif %}
+    <p><a class="botao" href="{% url 'regra_nova' %}?ativo={{ dolar.pk }}&tipo=alta_dia&valor=1">+ dólar subir 1% no dia</a> <a class="botao" href="{% url 'regra_nova' %}?ativo={{ dolar.pk }}&tipo=queda_dia&valor=1">+ cair 1% no dia</a> <a class="botao" href="{% url 'regra_nova' %}?ativo={{ dolar.pk }}&tipo=acima&currency=BRL{% if p.atual %}&valor={{ p.atual|numero:2 }}{% endif %}">+ acima de um valor</a></p>
+  </section>
+</div>
+{% for a in p.avisos %}<p class="nota">• {{ a }}</p>{% endfor %}
+<p class="nota">Cotação comercial e variação do dia: câmbio intradiário (AwesomeAPI). Variações de 7/30 dias, histórico e tendência: PTAX de fechamento (BCB). As duas séries não são misturadas num mesmo número. Tendência e expectativas não são previsão do portal. {{ aviso_metodologia }}</p>
+{% endwith %}

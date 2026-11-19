@@ -1,0 +1,27 @@
+<article class="noticia-card{% if compact %} noticia-compacta{% endif %}">
+  <div class="noticia-metadados">
+    <span class="noticia-regiao">{% if n.region == 'brasil' %}Brasil{% else %}Internacional{% endif %}</span>
+    <span>{{ n.get_topic_display }}</span>
+    {% if n.in_portfolio %}<span class="noticia-relacao">Na sua carteira</span>{% elif n.in_favorites %}<span class="noticia-relacao">Nos seus favoritos</span>{% endif %}
+  </div>
+  <h2><a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.title }}</a></h2>
+  {% if n.description %}<p class="noticia-resumo">{{ n.description|truncatechars:340 }}</p>{% endif %}
+  <div class="noticia-origem">
+    <strong>{{ n.publisher }}</strong><span>·</span>
+    <time datetime="{{ n.published_at|date:'c' }}" title="Publicado em {{ n.published_at|date:'d/m/Y H:i' }} · São Paulo">{{ n.published_at|date:"d/m H:i" }}</time>
+    {% for symbol in n.symbols %}<span class="noticia-ativo">{{ symbol }}</span>{% endfor %}
+  </div>
+  <div class="noticia-acoes">
+    <a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">Ler na fonte <span aria-hidden="true">↗</span></a>
+    {% if n.translated %}<span class="noticia-traducao">Tradução automática · EN → PT</span>
+    {% elif n.language == 'pt' %}<span class="mini texto-2">Original em português</span>
+    {% else %}<span class="mini texto-2">{{ n.get_translation_status_display }}</span>{% endif %}
+  </div>
+  {% if n.translated and not compact %}
+  <details class="noticia-original">
+    <summary>Ver texto original em inglês</summary>
+    <p lang="en"><strong>{{ n.headline }}</strong></p>
+    {% if n.summary %}<p lang="en">{{ n.summary }}</p>{% endif %}
+  </details>
+  {% endif %}
+</article>

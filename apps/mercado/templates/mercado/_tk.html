@@ -1,0 +1,1 @@
+<span class="tk"><a class="simbolo" href="{% url 'asset_detail' x.asset.pk %}">{{ x.asset.symbol }}</a><span class="tk-nome" title="{{ x.asset.name }}">{{ x.asset.name }}</span>{% if x.na_carteira %}<span class="badge badge-compra mini" title="você tem este ativo">carteira</span>{% endif %}</span>

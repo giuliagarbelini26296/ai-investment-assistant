@@ -1,0 +1,11 @@
+{% if compras_conferir %}
+<aside class="aviso" aria-label="Compras para conferir">
+  <strong>Confira os valores de {{ compras_conferir|length }} compra(s).</strong>
+  <p>Os totais usam os valores cadastrados abaixo. Revise-os antes de interpretar a rentabilidade.</p>
+  <ul>{% for item in compras_conferir %}
+    <li><a href="{% url 'lot_update' item.lot.pk %}">{{ item.lot.asset.symbol }} · {{ item.lot.trade_date|date:"d/m/Y" }} — conferir compra</a>
+      {% for problema in item.problemas %}<p class="mini">{{ problema }}</p>{% endfor %}
+    </li>
+  {% endfor %}</ul>
+</aside>
+{% endif %}

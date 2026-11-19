@@ -1,0 +1,5 @@
+{% if estado.estado == 'falha' %}
+<p class="aviso">{{ nome }}: {{ estado.mensagem }} Tentativa em {{ estado.quando|date:"d/m H:i" }}.
+{% if estado.ultimo_sucesso %}Última atualização concluída: {{ estado.ultimo_sucesso|date:"d/m H:i" }}. Os dados anteriores continuam identificados pela data de referência.{% else %}Ainda não há uma atualização concluída.{% endif %}
+<a href="{% url 'sobre_dados' %}">Ver situação dos dados</a></p>
+{% endif %}

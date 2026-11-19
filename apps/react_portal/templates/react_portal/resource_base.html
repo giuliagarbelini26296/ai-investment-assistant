@@ -1,0 +1,63 @@
+{% load static portal_icons %}<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}{{ resource_title }} · Portal de Investimentos{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'react_portal/favicon.svg' %}">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('id3-theme')||localStorage.getItem('portal-tema')||'light';}catch(e){document.documentElement.dataset.theme='light';}</script>
+  <link rel="stylesheet" href="{% static 'ui/style.css' %}">
+  <link rel="stylesheet" href="{{ resource_stylesheet }}">
+  <link rel="stylesheet" href="{% static 'portal_resources/resources.css' %}">
+  <script src="{% static 'ui/chart.umd.js' %}" defer></script>
+  <script src="{% static 'ui/portal.js' %}" defer></script>
+  <script src="{% static 'ui/mercado.js' %}" defer></script>
+  <script src="{% static 'ui/revisao.js' %}" defer></script>
+  <script src="{% static 'ui/noticias.js' %}" defer></script>
+  <script src="{% static 'portal_resources/resources.js' %}" defer></script>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials"><link rel="apple-touch-icon" sizes="180x180" href="/static/id3_app/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Portal Invest"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body class="resource-layout">
+<a class="skip-to-content" href="#resource-content">Ir para o conteúdo</a>
+<div class="app-shell">
+  <button class="mobile-scrim resource-scrim" aria-label="Fechar navegação" hidden></button>
+  <aside class="sidebar" id="resource-sidebar">
+    <a class="brand" href="{{ portfolio_home }}#/"><div class="brand-square">i.</div><div><strong>ID3<span> INVESTIMENTOS</span></strong><small>Uma visão mais clara.</small></div></a>
+    <a class="sidebar-buy{% if purchase_active %} active{% endif %}" href="{{ portfolio_purchase_url }}"{% if purchase_active %} aria-current="page"{% endif %}>＋ Registrar compra · {{ selected_portfolio_name }}</a>
+    <div class="workspace-label">SEU ESPAÇO</div>
+    <nav class="main-nav" aria-label="Navegação principal">
+      <a href="{{ portfolio_home }}#/">{% portal_icon 'overview' %}<span>Visão geral</span></a>
+      <a href="{{ portfolio_home }}#/carteira">{% portal_icon 'wallet' %}<span>Carteira {{ selected_portfolio_name }}</span></a>
+      <a href="{{ portfolio_home }}#/diagnostico">{% portal_icon 'shield' %}<span>Diagnóstico</span></a>
+      <a href="{{ portfolio_home }}#/excel">{% portal_icon 'layers' %}<span>Planilha integrada</span></a>
+      <a href="{{ portfolio_home }}#/assistente">{% portal_icon 'news' %}<span>Assistente</span></a>
+      <a href="{{ portfolio_home }}#/evolucao">{% portal_icon 'market' %}<span>Evolução</span></a>
+      <a href="{{ portfolio_home }}#/fontes">{% portal_icon 'radio' %}<span>Dados e fontes</span></a>
+    </nav>
+    <nav class="legacy-links resource-navigation" aria-label="Recursos do portal">
+      <div class="workspace-label">ACOMPANHAMENTO</div>
+      {% for item in resource_navigation %}<a href="{{ item.url }}"{% if item.active %} class="active" aria-current="page"{% endif %}>{% portal_icon item.icon %}<span>{{ item.label }}</span>{% portal_icon 'chevron' %}</a>{% endfor %}
+    </nav>
+    {% if resource_administration %}<div class="legacy-links"><details class="sidebar-administration"{% if purchase_active %} open{% endif %}><summary>{% portal_icon 'wallet' %}<span>Administração · Ana</span>{% portal_icon 'chevron' %}</summary><nav aria-label="Administração da carteira Ana">{% for item in resource_administration %}<a href="{{ item.url }}"{% if item.active %} class="active" aria-current="page"{% endif %}>{% portal_icon item.icon %}<span>{{ item.label }}</span>{% portal_icon 'chevron' %}</a>{% endfor %}</nav></details></div>{% endif %}
+    <div class="sidebar-note">{% portal_icon 'shield' %}<strong>Uma visão mais clara.</strong><p>Brasil e Estados Unidos, com cada moeda no seu total.</p><a href="/#/fontes">Fontes e metodologia ↗</a><a href="/instalar/">Instalar no celular ↗</a></div>
+    <div class="sidebar-bottom"><div class="avatar">{{ resource_initial }}</div><div><strong>Carteira compartilhada</strong><span><span class="tiny-dot"></span> Acesso privado</span></div>{% portal_icon 'shield' %}</div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar">
+      <div class="breadcrumb"><button type="button" class="icon-btn mobile-menu" id="resource-menu" aria-label="Abrir navegação" aria-controls="resource-sidebar" aria-expanded="false">{% portal_icon 'menu' %}</button><span>Meu espaço</span>{% portal_icon 'chevron' %}<strong>{{ resource_title }}</strong></div>
+      <div class="topbar-actions">
+        {% if user.is_authenticated %}<form method="post" action="{% url 'trocar_moeda' %}" class="seletor-moeda resource-currency" aria-label="Moeda de visualização" title="{% if cambio_visao %}USD/BRL {{ cambio_visao.valor|normalize_decimal }} · {{ cambio_visao.descricao }}{% else %}Câmbio indisponível{% endif %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" name="moeda" value="BRL" class="{% if moeda_visao == 'BRL' %}ativo{% endif %}">R$</button><button type="submit" name="moeda" value="USD" class="{% if moeda_visao == 'USD' %}ativo{% endif %}">US$</button></form>{% endif %}
+        <button type="button" id="alternar-tema" class="icon-btn" aria-label="Alternar tema">☾</button>
+        {% if user.is_authenticated %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout-button" type="submit">Sair</button></form><div class="avatar small" title="{{ user.get_username }}">{{ resource_initial }}</div>{% endif %}
+      </div>
+    </header>
+    <main class="main-content resource-content" id="resource-content">
+      <nav class="portfolio-switcher" aria-label="Selecionar carteira"><div><span class="section-kicker">CARTEIRAS SOB SUA GESTÃO</span><p>Carteira atual: {{ selected_portfolio_name }}</p></div><div class="portfolio-tabs"><a href="{{ resource_portfolio_ana_url }}"{% if selected_portfolio == 'ana' %} class="active" aria-current="page"{% endif %}>Ana</a><a href="{{ resource_portfolio_bruno_url }}"{% if selected_portfolio == 'bruno' %} class="active" aria-current="page"{% endif %}>Bruno</a></div></nav>
+      {% if portal.MODO_DEMO %}<div class="banner-demo" role="status">DEMONSTRAÇÃO — dados sintéticos, não são cotações. Não constituem recomendação de investimento.</div>{% endif %}
+      {% if messages %}<ul class="mensagens">{% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="app-footer"><span>{% portal_icon 'shield' %} Carteira · acesso privado</span><span>Sinais do portal baseiam-se em regras definidas pelo usuário e não constituem recomendação de investimento.</span><span>Portal de Investimentos · {{ portal.VERSAO }}</span></footer>
+  </div>
+</div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+</body></html>

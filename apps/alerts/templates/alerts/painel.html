@@ -1,0 +1,14 @@
+{% extends "ui/base.html" %}
+{% block title %}Alertas · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>Alertas</h1>
+  <div class="acoes-carteira">
+    <span class="ao-vivo" title="o painel se atualiza sozinho a cada 30 s"><span class="pulso" aria-hidden="true"></span><span id="painel-vivo-texto">ao vivo</span></span>
+    <a class="botao" href="{% url 'regra_nova' %}">Novo alerta</a>
+  </div>
+</div>
+<div id="painel-alertas" data-url="{% url 'alertas_fragmento' %}" data-ativos="{{ ativos|length }}">
+{% include "alerts/_painel.html" %}
+</div>
+{% endblock %}

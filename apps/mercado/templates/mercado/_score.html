@@ -1,0 +1,28 @@
+{% if x.score %}{% with s=x.score %}
+<details class="score">
+  <summary title="clique para ver os critérios">
+    {% if x.asset.is_etf or x.asset.market == 'CRIPTO' %}
+      {% with tecnico=s.por_grupo.tecnico %}<strong>{{ tecnico.0 }}/35</strong> <span class="mini">pontos técnicos</span><br>
+      <span class="texto-2 mini">Cobertura: {{ tecnico.1 }} de 35 pontos avaliáveis</span>{% endwith %}
+    {% else %}
+      <strong>{{ s.total }}/100</strong> <span class="mini">pontos</span><br>
+      <span class="texto-2 mini">Cobertura: {{ s.cobertura }} de 100 pontos avaliáveis</span>
+    {% endif %}
+  </summary>
+  <div class="score-detalhe">
+    <p class="nota">A cobertura informa quais critérios puderam ser avaliados. Pontos ausentes não são reescalonados. Risco é apresentado separadamente.</p>
+    <table class="tabela mini">
+      <thead><tr><th>Critério</th><th class="num">Pontos</th><th>Como foi calculado</th></tr></thead>
+      <tbody>
+      {% for c in s.criterios %}
+      {% if c.grupo == "tecnico" or not x.asset.is_etf and x.asset.market != "CRIPTO" %}
+        <tr class="{% if not c.avaliado %}nao-avaliado{% endif %}"><td>{{ c.codigo }} · {{ c.nome }}</td><td class="num">{% if c.avaliado %}{{ c.pontos_int }}/{{ c.maximo }}{% else %}—/{{ c.maximo }}{% endif %}</td><td class="texto-2">{{ c.explicacao }}</td></tr>
+      {% endif %}{% endfor %}
+      </tbody>
+    </table>
+    <p class="mini"><strong>Risco {{ s.risco }}:</strong> {{ s.motivos_risco|join:"; " }}.</p>
+    <p class="mini"><strong>Perspectiva {{ s.perspectiva }}:</strong> {{ s.perspectiva_motivo }}.</p>
+    {% for o in s.observacoes %}<p class="mini texto-2">{{ o }}</p>{% endfor %}
+  </div>
+</details>
+{% endwith %}{% else %}<span class="texto-2 mini">sem histórico</span>{% endif %}

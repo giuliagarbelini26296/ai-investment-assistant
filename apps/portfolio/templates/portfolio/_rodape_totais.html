@@ -1,0 +1,18 @@
+{% totais_tabela linhas_totais as totais %}
+<tfoot data-totais-tabela data-layout="{{ layout }}">
+{% for t in totais %}
+<tr class="linha-total" data-total-moeda="{{ t.moeda }}">
+  {% if layout == 'carteira' %}<td class="sel"></td>{% endif %}
+  <th scope="row"{% if layout == 'ativos' %} colspan="8"{% endif %}><span class="total-titulo" data-total-label>Total em {{ t.moeda }}</span><small class="nota total-cobertura" data-total-cobertura>{{ t.posicoes }} ativo(s) · {{ t.avaliadas }} com cotação</small><small class="nota total-cobertura" data-total-base>Investido: {{ t.investido|moeda:t.moeda }}</small></th>
+  {% if layout == 'carteira' %}<td class="oculta-mobile"></td><td class="col-extra"></td><td></td><td></td>{% endif %}
+  <td class="num {% if t.dia < 0 %}queda{% elif t.dia > 0 %}alta{% endif %}" data-total-campo="dia" title="Variação sobre o fechamento anterior · {{ t.com_dia }} de {{ t.posicoes }} com variação disponível">{% if t.dia is not None %}{{ t.dia|moeda:t.moeda }}<small class="total-cobertura">{{ t.dia_pct|pct }}</small>{% else %}—{% endif %}</td>
+  {% if layout == 'carteira' %}
+  <td class="num col-extra" data-total-campo="investido">{{ t.investido|moeda:t.moeda }}</td>
+  <td class="num" data-total-campo="valor">{% if t.valor is not None %}{{ t.valor|moeda:t.moeda }}{% else %}—{% endif %}</td>
+  {% endif %}
+  <td class="num {% if t.resultado < 0 %}queda{% elif t.resultado > 0 %}alta{% endif %}" data-total-campo="resultado" title="Resultado desde o preço médio">{% if t.resultado is not None %}{{ t.resultado|moeda:t.moeda }}{% else %}—{% endif %}</td>
+  <td class="num{% if layout == 'carteira' %} oculta-mobile{% endif %} {% if t.retorno < 0 %}queda{% elif t.retorno > 0 %}alta{% endif %}" data-total-campo="retorno" title="Resultado total dividido pelo investido das posições com cotação">{% if t.retorno is not None %}{{ t.retorno|pct }}{% else %}—{% endif %}</td>
+  <td{% if layout == 'carteira' %} class="exp"{% endif %}></td>
+</tr>
+{% endfor %}
+</tfoot>

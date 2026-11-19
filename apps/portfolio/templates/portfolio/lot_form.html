@@ -1,0 +1,28 @@
+{% extends "ui/base.html" %}
+{% block title %}{{ titulo }} · {{ asset.symbol }}{% endblock %}
+{% block content %}
+<h1>{{ titulo }} — {{ asset.symbol }} <small class="texto-2">({{ asset.get_market_display }}, {{ asset.native_currency }})</small></h1>
+<form method="post" class="formulario" id="form-compra" data-moeda="{{ asset.native_currency }}" data-inteira="{{ asset.requires_integer_quantity|yesno:'sim,nao' }}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for campo in form %}
+    <div class="campo{% if campo.errors %} com-erro{% endif %}">
+      {{ campo.label_tag }} {{ campo }}
+      {% if campo.help_text %}<small>{{ campo.help_text }}</small>{% endif %}
+      {{ campo.errors }}
+    </div>
+  {% endfor %}
+  {% if lot %}
+    <div class="campo"><label for="motivo">Motivo da alteração (opcional)</label><input type="text" id="motivo" name="motivo" maxlength="200"></div>
+  {% endif %}
+  <section class="cartao" aria-label="Prévia da compra">
+    <strong>Confira antes de salvar</strong>
+    <p id="previa-compra" aria-live="polite">Preencha quantidade e preço para conferir o total.</p>
+    <p class="nota">Use vírgula para decimais e ponto para milhares: 76.590,50. A prévia não inclui custos, taxas ou impostos.</p>
+  </section>
+  <div class="acoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a href="{% url 'asset_detail' asset.pk %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

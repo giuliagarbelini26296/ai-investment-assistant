@@ -1,0 +1,169 @@
+{% comment %}Miolo da carteira: recarregado ao vivo por portal.js (GET carteira/fragmento/).{% endcomment %}
+<div class="fragmento-meta" data-ultima="{% if ultima_coleta %}{{ ultima_coleta|date:'c' }}{% endif %}" data-ultima-texto="{% if ultima_coleta %}dados de {{ ultima_coleta|date:'H:i' }}{% else %}sem coleta ainda{% endif %}" data-alertas="{{ alertas_ativos }}" data-nao-vistos="{{ alertas_nao_vistos }}" data-moeda="{{ moeda }}" data-outra="{{ outra_moeda }}" data-taxa-outra="{{ taxa_outra|bruto }}" hidden></div>
+
+{% include "portfolio/_conferencia.html" %}
+
+{% for variavel, simbolos in fontes_sem_chave.items %}<div class="aviso">{{ simbolos|join:", " }} sem cotação: a fonte exige chave de API — preencha <code>{{ variavel }}</code> no <code>.env</code> e rode <code>docker compose up -d</code>. Até lá a coleta desse mercado fica pausada (sem erros).</div>{% endfor %}
+{% if visao.sem_cambio_atual %}<div class="aviso">Sem cotação de câmbio USD/BRL disponível: posições em outra moeda não puderam ser convertidas.</div>{% endif %}
+{% if visao.cambio and visao.cambio.desatualizado %}<div class="aviso">Câmbio em uso está desatualizado ({{ visao.cambio.descricao }}). Os valores convertidos refletem essa cotação.</div>{% endif %}
+{% if visao.sem_base %}<div class="aviso">{{ visao.sem_base|length }} posição(ões) sem base cambial (sem câmbio de compra informado nem PTAX disponível para a data): {{ visao.sem_base|join:", " }}. Aparecem só na moeda nativa e ficam fora dos totais em {{ moeda }}.</div>{% endif %}
+
+{% if visao.linhas %}
+{% with c=visao.consolidado %}
+<section class="cartoes heroi">
+  <div class="cartao destaque">
+    <span class="rotulo">Patrimônio em {{ moeda }}</span>
+    <span class="valor" data-sim="patrimonio">{% if c.posicoes_avaliadas %}{{ c.valor_atual|moeda:moeda }}{% else %}—{% endif %}</span>
+    <span class="nota">{% if taxa_outra and c.posicoes_avaliadas %}≈ <span data-sim="patrimonio-outra">{{ c.valor_atual|multiplicar:taxa_outra|moeda:outra_moeda }}</span> · {% endif %}{{ c.cobertura }}{% if visao.sem_base %} · {{ visao.sem_base|length }} sem base cambial{% endif %}</span>
+    <canvas class="spark-card" id="spark-patrimonio" height="34" aria-label="patrimônio nos últimos 30 dias"></canvas>
+  </div>
+  <div class="cartao">
+    <span class="rotulo">Hoje</span>
+    <span class="valor {% if dia.valor < 0 %}queda{% elif dia.posicoes %}alta{% endif %}">{% if dia.posicoes %}<span class="seta">{% if dia.valor < 0 %}▼{% else %}▲{% endif %}</span> {{ dia.valor|moeda:moeda }}{% else %}—{% endif %}</span>
+    <span class="nota">{% if dia.pct is not None %}{{ dia.pct|pct }} · {{ dia.posicoes }} posição(ões){% else %}sem variação do dia disponível{% endif %}{% if dia.sem_variacao %} · sem variação: {{ dia.sem_variacao|join:", " }}{% endif %}</span>
+  </div>
+  <div class="cartao">
+    <span class="rotulo">Desde a compra</span>
+    <span class="valor {% if c.resultado < 0 %}queda{% elif c.posicoes_avaliadas %}alta{% endif %}" data-sim="resultado">{% if c.posicoes_avaliadas %}{{ c.resultado|moeda:moeda }}{% else %}—{% endif %}</span>
+    <span class="nota"><span data-sim="retorno">{% if c.retorno_pct is not None %}{{ c.retorno_pct|pct }}{% else %}indisponível{% endif %}</span> sobre o investido avaliado</span>
+  </div>
+  <div class="cartao">
+    <span class="rotulo">Investido em {{ moeda }}</span>
+    <span class="valor">{{ c.investido_total|moeda:moeda }}</span>
+    <span class="nota">{{ c.posicoes_total }} posição(ões) · sem custos, taxas e impostos</span>
+  </div>
+</section>
+{% endwith %}
+{% if visao.por_classe|length > 1 %}
+<p class="nota">Por classe:
+{% for classe, pc in visao.por_classe.items %}<strong>{% if classe == "acao" %}ações{% else %}cripto{% endif %}</strong> investido {{ pc.investido_total|moeda:moeda }}{% if pc.posicoes_avaliadas %}, resultado {{ pc.resultado|moeda:moeda }} ({{ pc.retorno_pct|pct }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
+</p>
+{% endif %}
+
+<section class="graficos-carteira">
+  <div class="grafico grafico-evolucao">
+    <div class="barra-grafico">
+      <strong>Evolução do patrimônio ({{ moeda }})</strong>
+      <span class="texto-2 mini" id="evolucao-selecao" title="clique em dois pontos do gráfico para medir a variação do período"></span>
+      <span class="espaco"></span>
+      <button type="button" class="chip" data-dias="30">1M</button>
+      <button type="button" class="chip ativo" data-dias="90">3M</button>
+      <button type="button" class="chip" data-dias="365">1A</button>
+    </div>
+    <canvas id="grafico-evolucao" data-url="{% url 'evolucao_json' %}" data-moeda="{{ moeda }}" height="110"></canvas>
+    <p class="nota" id="grafico-evolucao-nota">Fechamentos diários × PTAX da data.</p>
+  </div>
+  <div class="grafico grafico-alocacao">
+    <div class="barra-grafico"><strong>Alocação</strong><span class="espaco"></span><span class="texto-2 mini">clique numa fatia para filtrar</span></div>
+    <div class="alocacao-corpo">
+      <div class="rosca"><canvas id="grafico-alocacao"></canvas></div>
+      <script type="application/json" id="dados-alocacao">[{% for i in alocacao %}{"simbolo":"{{ i.simbolo|escapejs }}","classe":"{{ i.classe }}","valor":{{ i.valor|stringformat:".2f" }},"pct":{{ i.pct|stringformat:".2f" }}}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+      <ul class="legenda-alocacao vertical">{% for i in alocacao %}<li data-simbolo="{{ i.simbolo }}"><span class="cor" data-idx="{{ forloop.counter0 }}"></span><span class="sim">{{ i.simbolo }}</span><span class="num">{{ i.valor|moeda:moeda }}</span><span class="texto-2 num">{{ i.pct|pct:1 }}</span></li>{% endfor %}</ul>
+    </div>
+  </div>
+</section>
+
+<section class="posicoes-card" aria-labelledby="titulo-posicoes">
+<div class="posicoes-cabecalho">
+  <div><span class="posicoes-sobretitulo">Sua carteira</span><h2 id="titulo-posicoes">Posições e resultados</h2><p>Preços médios, desempenho e totais por moeda.</p></div>
+  <span class="contagem-posicoes" id="contagem-carteira"></span>
+</div>
+<div class="barra-tabela">
+  <div class="filtros-rapidos" id="filtros-rapidos" role="group" aria-label="filtros rápidos">
+    <div class="grupo-filtro"><span class="rotulo-filtro">Ativos</span><div class="grupo-botoes">
+      <button type="button" class="chip ativo" data-filtro="">Todos</button>
+      <button type="button" class="chip" data-filtro="classe:acao">Ações</button>
+      {% if 'cripto' in visao.por_classe %}<button type="button" class="chip" data-filtro="classe:cripto">Cripto</button>{% endif %}
+    </div></div>
+    <div class="grupo-filtro"><span class="rotulo-filtro">Corretora</span><div class="grupo-botoes">
+      <button type="button" class="chip" data-filtro="custodia:AVENUE">Avenue</button>
+      <button type="button" class="chip" data-filtro="custodia:BTG">BTG Investimentos</button>
+    </div></div>
+    <div class="grupo-filtro"><span class="rotulo-filtro">Resultado</span><div class="grupo-botoes">
+      <button type="button" class="chip" data-filtro="situacao:lucro">Em lucro</button>
+      <button type="button" class="chip" data-filtro="situacao:prejuizo">Em prejuízo</button>
+    </div></div>
+    <label class="filtro-busca"><span class="rotulo-filtro">Buscar ativo</span><input type="search" id="busca-carteira" placeholder="Símbolo ou nome…" aria-label="buscar ativo" class="busca-mini"></label>
+  </div>
+  <div class="acoes-tabela">
+    <span class="texto-2 mini">Visualização</span>
+    <button type="button" class="chip" id="alternar-colunas" aria-pressed="false">mais colunas</button>
+    <button type="button" class="chip" id="alternar-simulador" aria-pressed="false">E se…</button>
+    <button type="button" class="chip" id="comparar-selecionados" disabled>Comparar selecionados</button>
+  </div>
+</div>
+
+<div class="simulador" id="simulador" hidden>
+  <div class="simulador-cabecalho"><strong>E se…</strong> <span class="texto-2">simulação local — não são dados de mercado; nada é gravado</span><span class="espaco"></span><button type="button" class="chip" id="simulador-zerar">zerar</button></div>
+  <div class="simulador-controles">
+    <label>Preço de todos os ativos <output id="sim-preco-out">0%</output><input type="range" id="sim-preco" min="-50" max="50" step="1" value="0"></label>
+    <label>Câmbio USD/BRL <output id="sim-cambio-out">0%</output><input type="range" id="sim-cambio" min="-20" max="20" step="0.5" value="0"></label>
+  </div>
+  <div class="simulador-ativos" id="sim-ativos"></div>
+  <p class="nota">Patrimônio e resultado nos cards acima recalculam ao vivo durante a simulação (ficam marcados como simulados). O câmbio afeta posições cotadas em moeda diferente da visualização; o investido não muda.</p>
+</div>
+
+<div class="comparacao-inline" id="comparacao-inline" hidden>
+  <div class="barra-grafico"><strong>Comparação (base 100)</strong><span class="espaco"></span>{% for p in "1m,6m,1a"|split:"," %}<button type="button" class="chip {% if p == '1m' %}ativo{% endif %}" data-comp-periodo="{{ p }}">{{ p|upper }}</button>{% endfor %}<button type="button" class="chip" id="fechar-comparacao">fechar</button></div>
+  <div class="grafico"><canvas id="grafico-comparacao-inline" height="90"></canvas></div>
+  <p class="nota" id="comparacao-inline-nota"></p>
+</div>
+
+<div class="posicoes-rolagem" id="posicoes-rolagem">
+<table class="tabela tabela-carteira ordenavel" id="tabela-carteira">
+  <thead><tr>
+    <th class="sel"><input type="checkbox" id="sel-todos" aria-label="selecionar todos para comparar"></th>
+    <th data-sort="txt">Ativo</th>
+    <th class="oculta-mobile">7 dias</th>
+    <th class="num col-extra" data-sort="num">Quantidade</th>
+    <th class="num" data-sort="num">Preço médio</th>
+    <th class="num" data-sort="num">Preço atual</th>
+    <th class="num" data-sort="num">Dia</th>
+    <th class="num col-extra" data-sort="num">Investido</th>
+    <th class="num" data-sort="num">Valor de mercado</th>
+    <th class="num" data-sort="num">Resultado</th>
+    <th class="num oculta-mobile" data-sort="num">Retorno</th>
+    <th class="exp"></th>
+  </tr></thead>
+  <tbody>
+  {% for l in visao.linhas %}{% with d=l.dados_totais %}
+    <tr class="linha-ativo" data-id="{{ l.asset.pk }}" data-simbolo="{{ l.asset.symbol }}" data-nome="{{ l.asset.name|lower }}" data-classe="{{ l.asset.asset_class }}" data-custodia="{{ l.asset.custody }}" data-moeda-nativa="{{ l.asset.native_currency }}"
+        data-situacao="{% if l.resultado_para_filtro is None %}sem_preco{% elif l.resultado_para_filtro < 0 %}prejuizo{% else %}lucro{% endif %}"
+        data-valor="{{ l.valor_atual_visao|bruto }}" data-investido="{% if not l.sem_base_cambial %}{{ l.investido_visao|bruto }}{% endif %}" data-painel="{% url 'asset_painel' l.asset.pk %}"
+        {% include "portfolio/_dados_totais.html" %}>
+      <td class="sel"><input type="checkbox" class="sel-comparar" value="{{ l.asset.pk }}" aria-label="selecionar {{ l.asset.symbol }}"></td>
+      <td data-value="{{ l.asset.symbol }}" class="celula-ativo">
+        <div class="ativo-identidade">{% include "mercado/_estrela.html" with asset=l.asset %}<div class="ativo-textos">
+          <div class="ativo-titulo"><a href="{% url 'asset_detail' l.asset.pk %}" class="simbolo"><strong>{{ l.asset.symbol }}</strong></a>{% if l.alerta_ativo %}<a href="{% url 'alertas' %}" class="badge badge-alerta" title="alerta ativo">alerta</a>{% endif %}</div>
+          <div class="ativo-metadados"><span class="moeda-ativo">{{ l.asset.native_currency }}</span><span class="corretora-ativo">{{ l.asset.get_custody_display }}</span>{% if l.sem_base_cambial %}<span class="moeda-original" title="Valores na moeda original: falta o câmbio de aquisição para calcular o resultado em {{ moeda }}.">Moeda original</span>{% endif %}</div>
+        </div></div>
+      </td>
+      <td class="oculta-mobile celula-spark">{{ l.sparkline|safe }}</td>
+      <td class="num col-extra" data-value="{{ l.posicao.quantidade|bruto }}">{{ l.posicao.quantidade|normalize_decimal }}</td>
+      <td class="num" data-value="{{ l.posicao.preco_medio|bruto }}">{{ l.posicao.preco_medio|moeda:l.asset.native_currency }}</td>
+      {% if l.avaliacao %}
+        <td class="num" data-value="{{ l.avaliacao.preco_atual|bruto }}"><span class="ponto ponto-{{ l.atualidade.estado }}" title="{{ l.atualidade.rotulo }} — {{ l.atualidade.descricao }}"></span>{{ l.avaliacao.preco_atual|moeda:l.atualidade.cotacao.currency }}</td>
+        <td class="num {% if l.avaliacao.variacao_dia_pct < 0 %}queda{% elif l.avaliacao.variacao_dia_pct %}alta{% endif %}" data-value="{{ l.avaliacao.variacao_dia_pct|bruto }}">{{ l.avaliacao.variacao_dia_pct|pct }}{% if d.dia is not None %}<span class="subvalor">{{ d.dia|moeda:d.moeda }}</span>{% endif %}</td>
+      {% else %}
+        <td class="num texto-2" title="{{ l.motivo_sem_preco }}" data-value="0"><span class="ponto ponto-{{ l.atualidade.estado|default:'sem_cotacao' }}" title="{{ l.motivo_sem_preco }}"></span>indisponível</td><td class="num texto-2" data-value="0">—</td>
+      {% endif %}
+      <td class="num col-extra" data-value="{{ d.investido|bruto }}">{{ d.investido|moeda:d.moeda }}</td>
+      <td class="num" data-value="{{ d.valor|bruto }}" data-sim-valor>{% if d.valor is not None %}{{ d.valor|moeda:d.moeda }}{% else %}<span class="texto-2">indisponível</span>{% endif %}</td>
+      <td class="num {% if d.resultado < 0 %}queda{% elif d.resultado > 0 %}alta{% endif %}" data-value="{{ d.resultado|bruto }}" data-sim-resultado>{% if d.resultado is not None %}{{ d.resultado|moeda:d.moeda }}{% else %}<span class="texto-2">indisponível</span>{% endif %}</td>
+      <td class="num oculta-mobile {% if d.resultado < 0 %}queda{% elif d.resultado > 0 %}alta{% endif %}" data-value="{% if l.sem_base_cambial %}{{ l.avaliacao.retorno_pct|bruto }}{% else %}{{ l.retorno_visao|bruto }}{% endif %}" data-sim-retorno>{% if l.sem_base_cambial %}{{ l.avaliacao.retorno_pct|pct }}{% elif l.retorno_visao is not None %}{{ l.retorno_visao|pct }}{% else %}—{% endif %}</td>
+      <td class="exp"><button type="button" class="expandir" aria-expanded="false" aria-label="detalhes de {{ l.asset.symbol }}">▸</button></td>
+    </tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+  {% include "portfolio/_rodape_totais.html" with linhas_totais=visao.linhas layout="carteira" %}
+</table>
+</div>
+<div class="posicoes-vazio" id="posicoes-vazio" hidden><strong>Nenhuma posição neste filtro</strong><p>Escolha outro filtro ou busque um ativo da sua carteira.</p></div>
+<div class="posicoes-notas">
+<p class="nota nota-totais">Totais dos ativos exibidos. Resultado e retorno são desde o preço médio; “Dia” compara com o fechamento anterior. Sem base cambial, os totais ficam separados por moeda original. Posições sem cotação ficam fora do resultado e do retorno.</p>
+<details class="detalhes-calculo"><summary>Como os valores são calculados</summary><p class="nota">Valores convertidos usam {% if visao.cambio %}o câmbio {{ visao.cambio.descricao }} (USD/BRL {{ visao.cambio.valor|normalize_decimal }}){% else %}— sem câmbio disponível —{% endif %} e o câmbio de cada compra. Retorno consolidado = resultado / investido das posições avaliadas. Exclui proventos, taxas e impostos. "Hoje" usa a variação sobre o fechamento anterior (ações) ou 24 h da exchange (cripto). Ponto ao lado do preço: <span class="ponto ponto-atual"></span> ao vivo/spot · <span class="ponto ponto-mercado_fechado"></span> mercado fechado/atrasado · <span class="ponto ponto-desatualizado"></span> desatualizado ou sem cotação.</p></details>
+</div>
+</section>
+{% else %}
+<p class="estado">Nenhuma posição. <a href="{% url 'asset_create' %}">Cadastre um ativo</a> e registre a primeira compra, ou <a href="{% url 'importar_compras' %}">importe um CSV</a>.</p>
+{% endif %}

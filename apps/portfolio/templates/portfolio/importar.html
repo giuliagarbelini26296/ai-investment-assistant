@@ -1,0 +1,57 @@
+{% extends "ui/base.html" %}
+{% block title %}Importar compras · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<h1>Importar compras (CSV)</h1>
+<p class="nota">Duas etapas: você envia o arquivo, confere a pré-visualização e só então confirma. Nada é gravado antes da confirmação.</p>
+
+{% if not previa %}
+<form method="post" enctype="multipart/form-data" class="formulario">
+  {% csrf_token %}
+  <div class="campo"><label for="arquivo">Arquivo CSV</label><input type="file" id="arquivo" name="arquivo" accept=".csv,text/csv" required></div>
+  <div class="campo"><label for="custodia">Custódia padrão (formato genérico sem coluna custodia)</label>
+    <select id="custodia" name="custodia">{% for v, n in custodias %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+  <div class="acoes"><button type="submit" class="botao">Pré-visualizar</button> <a href="{% url 'asset_list' %}">Cancelar</a></div>
+</form>
+<h2>Formatos aceitos</h2>
+<table class="tabela">
+  <thead><tr><th>Formato</th><th>Colunas</th><th>Observações</th></tr></thead>
+  <tbody>
+    <tr><td>Genérico</td><td><code>simbolo, data, quantidade, preco</code> e opcionais <code>moeda, cambio, mercado, custodia, observacao</code></td><td>Data <code>AAAA-MM-DD</code> ou <code>DD/MM/AAAA</code>; números com vírgula ou ponto. Ativo novo exige <code>mercado</code> (NYSE, NASDAQ, B3, CRIPTO).</td></tr>
+    <tr><td>Binance — extrato de ordens</td><td><code>Date(UTC), Pair, Side, Price, Executed, Amount, Fee</code></td><td>Só ordens <strong>BUY</strong> viram compras; vendas são listadas como ignoradas. Pares em USDT são tratados como USD (rotulado na observação). Ativo criado como Cripto / Binance se não existir.</td></tr>
+  </tbody>
+</table>
+<p class="nota">Exemplo genérico:<br><code>simbolo,data,quantidade,preco,moeda,cambio<br>TTWO,2026-03-10,10,150.25,USD,5.12<br>BTC,2026-05-02,0.015,61000,USD,</code></p>
+
+{% else %}
+  {% if previa.erro_geral %}
+    <div class="aviso">{{ previa.erro_geral }}</div>
+    <p><a class="botao" href="{% url 'importar_compras' %}">Enviar outro arquivo</a></p>
+  {% else %}
+  <p>Formato detectado: <strong>{% if previa.formato == "binance" %}extrato de ordens da Binance{% else %}genérico{% endif %}</strong> ·
+     <strong>{{ previa.validas|length }}</strong> compra(s) prontas · {{ previa.com_erro|length }} com erro · {{ previa.ignoradas|length }} ignorada(s)</p>
+  <table class="tabela previa-importacao">
+    <thead><tr><th>Linha</th><th>Símbolo</th><th>Mercado / custódia</th><th>Data</th><th class="num">Quantidade</th><th class="num">Preço</th><th class="num">Câmbio</th><th>Situação</th></tr></thead>
+    <tbody>
+    {% for li in previa.linhas %}
+      <tr class="{% if li.erro %}com-erro{% elif li.ignorada %}cancelado{% endif %}">
+        <td>{{ li.n }}</td>
+        <td>{{ li.simbolo }}</td>
+        <td>{{ li.mercado|default:"—" }} / {{ li.custodia }}</td>
+        <td>{{ li.data|date:"d/m/Y"|default:"—" }}</td>
+        <td class="num">{% if li.quantidade is not None %}{{ li.quantidade|normalize_decimal }}{% endif %}</td>
+        <td class="num">{% if li.preco is not None %}{{ li.preco|moeda:li.moeda }}{% endif %}</td>
+        <td class="num">{% if li.cambio is not None %}{{ li.cambio|normalize_decimal }}{% else %}<span class="texto-2">PTAX da data</span>{% endif %}</td>
+        <td>{% if li.erro %}<span class="erro">{{ li.erro }}</span>{% elif li.ignorada %}<span class="texto-2">ignorada: {{ li.ignorada }}</span>{% elif li.criar_ativo %}<span class="badge badge-alerta">cria o ativo</span>{% else %}<span class="badge badge-atual">pronta</span>{% endif %}{% if li.observacao %}<br><span class="texto-2 mini">{{ li.observacao }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" class="acoes-carteira" style="margin-top:12px">
+    {% csrf_token %}
+    {% if previa.validas %}<button type="submit" name="acao" value="confirmar" class="botao">Confirmar {{ previa.validas|length }} compra(s)</button>{% endif %}
+    <button type="submit" name="acao" value="cancelar" class="chip">Descartar e enviar outro arquivo</button>
+  </form>
+  <p class="nota">Linhas com erro não são importadas; corrija o arquivo e envie de novo. Compras importadas podem ser editadas ou canceladas depois, com trilha de revisões.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

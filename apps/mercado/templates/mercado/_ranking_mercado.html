@@ -1,0 +1,25 @@
+<div class="rolagem-x">
+<table class="tabela ordenavel tabela-ranking" data-busca-alvo>
+  <thead><tr>
+    <th class="num" data-sort="num">#</th><th data-sort="txt">Ativo</th><th class="num" data-sort="num">Cotação ({{ moeda }})</th>
+    <th class="num" data-sort="num">Variação</th><th class="num" data-sort="num" title="média diária no período; ≈ volume × fechamento, na moeda nativa">Volume médio/dia</th>
+    <th class="num" data-sort="num">Máxima<br><span class="mini texto-2">moeda nativa</span></th><th class="num" data-sort="num">Mínima<br><span class="mini texto-2">moeda nativa</span></th><th>7 dias</th>
+  </tr></thead>
+  <tbody>
+  {% for li in linhas_r %}{% with p=li.x.ind.periodos|obter:periodo %}
+    <tr data-busca="{{ li.x.asset.symbol|lower }} {{ li.x.asset.name|lower }}">
+      <td class="num">{{ forloop.counter }}</td>
+      <td>{% include "mercado/_ativo_celula.html" with x=li.x %}<br><span class="mini texto-2">{{ li.x.day_reference_label }}</span></td>
+      <td class="num" data-value="{{ li.preco_moeda|bruto }}">{{ li.preco_moeda|preco:li.moeda }}<br>{% include "mercado/_atualidade.html" with x=li.x %}</td>
+      <td class="num {{ li.ret.moeda|sinal_classe }}" data-value="{{ li.ret.moeda|bruto }}"><strong>{{ li.ret.moeda|pct }}</strong>{% if li.moeda != li.x.moeda and li.ret.efeito_cambial is not None %}<br><span class="mini texto-2">ativo {{ li.ret.nativo|pct:1 }} · câmbio {{ li.ret.efeito_cambial|pct:1 }}</span>{% elif p.base_data %}<br><span class="mini texto-2">desde {{ p.base_data|date:"d/m/y" }}</span>{% endif %}</td>
+      <td class="num" data-value="{{ p.volume_financeiro|bruto }}">{% if p.volume_financeiro %}≈ {{ p.volume_financeiro|compacto }}{% else %}—{% endif %}<br><span class="mini texto-2">{{ p.volume_medio|compacto }} un.</span></td>
+      <td class="num" data-value="{{ p.maxima|bruto }}">{{ p.maxima|preco:li.x.moeda }}</td>
+      <td class="num" data-value="{{ p.minima|bruto }}">{{ p.minima|preco:li.x.moeda }}</td>
+      <td class="celula-spark" data-spark="{{ li.x.sparkline|slice:'-8:'|safe_json }}"></td>
+    </tr>
+  {% endwith %}{% empty %}
+    <tr><td colspan="8" class="texto-2">{{ vazio }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

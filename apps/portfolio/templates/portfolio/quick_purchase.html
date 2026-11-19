@@ -1,0 +1,43 @@
+{% extends 'ui/base.html' %}{% load static %}
+{% block title %}Registrar compra · Portal de Investimentos{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'portal_resources/purchase.css' %}">
+<div class="cabecalho-pagina"><div><div class="purchase-eyebrow">SUA CARTEIRA, SEM PLANILHA</div><h1>Registrar compra</h1><p class="nota">Informe a nova compra. O portal soma à posição atual e calcula o preço médio automaticamente.</p></div></div>
+<div class="purchase-info">Use a <strong>quantidade desta nova compra</strong> e o <strong>preço pago por ação ou cota</strong>. Saldo bruto é o valor da posição; rentabilidade e proventos não são preço de compra.</div>
+{% if form.non_field_errors %}<div class="purchase-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+{% if preview %}
+  <section class="purchase-review"><div class="purchase-step">2 · CONFERIR E CONFIRMAR</div><h2>Confira sua compra de {{ preview.symbol }}</h2><p>{{ preview.broker }} · {{ preview.currency }} · {{ preview.purchase.date|date:'d/m/Y' }}</p>
+    <div class="purchase-summary" id="purchase-review-summary">
+      <section><span>Antes da compra</span><strong>{{ preview.before.quantity|normalize_decimal }} <small>ações/cotas</small></strong><p>Preço médio <b>{{ preview.before.averagePrice|moeda:preview.currency }}</b></p><p>Investido <b>{{ preview.before.cost|moeda:preview.currency }}</b></p></section>
+      <section><span>Nova compra</span><strong>{{ preview.purchase.quantity|normalize_decimal }} <small>ações/cotas</small></strong><p>Preço pago <b>{{ preview.purchase.unitPrice|moeda:preview.currency }}</b></p><p>Total da compra <b>{{ preview.purchase.total|moeda:preview.currency }}</b></p></section>
+      <section class="purchase-result"><span>Depois da compra</span><strong>{{ preview.after.quantity|normalize_decimal }} <small>ações/cotas</small></strong><p>Novo preço médio <b>{{ preview.after.averagePrice|moeda:preview.currency }}</b></p><p>Investido <b>{{ preview.after.cost|moeda:preview.currency }}</b></p></section>
+    </div>
+    <p class="nota">A posição atual já inclui os saldos conciliados e as compras lançadas. Se esta compra já faz parte da quantidade acima, não registre novamente.</p>
+    <form method="post" id="purchase-confirm-form">{% csrf_token %}
+      {% for field in form %}<input type="hidden" name="{{ field.name }}" value="{{ field.value|default_if_none:'' }}">{% endfor %}
+      <input type="hidden" name="review_signature" value="{{ review_signature }}">
+      <label class="purchase-ack"><input type="checkbox" name="not_included" value="yes" required> Confirmo que esta compra ainda não está incluída na posição atual.</label>
+      <div class="acoes"><button class="botao" type="submit" name="action" value="confirm" id="confirm-purchase">Confirmar registro</button><button class="chip" type="submit" name="action" value="edit" formnovalidate>Corrigir dados</button><a href="{% url 'home' %}">Cancelar</a></div>
+    </form>
+  </section>
+{% else %}
+  <div class="purchase-grid">
+    <form method="post" class="formulario purchase-entry" id="quick-purchase-form" data-preview-url="{% url 'purchase_preview' %}">
+      {% csrf_token %}{{ form.submission_key }}{{ form.submission_key.errors }}
+      <div class="purchase-step">1 · INFORMAR A COMPRA</div>
+      <div class="campo">{{ form.asset_choice.label_tag }}{{ form.asset_choice }}{{ form.asset_choice.errors }}<small>Se ainda não está cadastrado, <a href="{% url 'asset_create' %}?compra=1">cadastrar outro ativo</a>.</small></div>
+      <div class="purchase-fields">
+        <div class="campo">{{ form.quantity.label_tag }}{{ form.quantity }}{{ form.quantity.errors }}<small>{{ form.quantity.help_text }}</small></div>
+        <div class="campo">{{ form.unit_price.label_tag }}{{ form.unit_price }}{{ form.unit_price.errors }}<small>{{ form.unit_price.help_text }}</small></div>
+        <div class="campo">{{ form.trade_date.label_tag }}{{ form.trade_date }}{{ form.trade_date.errors }}</div>
+      </div>
+      <details class="purchase-additional"><summary>Conferência de valores fora do esperado</summary><div class="campo">{{ form.confirmar_valores }} {{ form.confirmar_valores.label_tag }}{{ form.confirmar_valores.errors }}</div></details>
+      <div class="acoes"><button class="botao" type="submit" name="action" value="review">Conferir compra</button><a href="{% url 'home' %}">Cancelar</a></div>
+      <p class="nota">Nada é registrado até você conferir e confirmar na próxima tela.</p>
+    </form>
+    <aside class="purchase-live" aria-label="Cálculo automático"><div class="purchase-step">PREÇO MÉDIO AUTOMÁTICO</div><h2>Veja como sua posição vai ficar</h2><div id="purchase-live" aria-live="polite"><p class="nota">Escolha o ativo e preencha quantidade e preço pago.</p></div><p class="purchase-formula">Novo preço médio = (investido atual + valor da nova compra) ÷ quantidade total.</p></aside>
+  </div>
+{% endif %}
+<p class="nota purchase-disclaimer">O cálculo usa a moeda do ativo e não mistura reais com dólares. Taxas, impostos e proventos não entram no preço médio deste cálculo. Este registro organiza a carteira; não envia ordens à corretora.</p>
+<script src="{% static 'portal_resources/purchase.js' %}" defer></script>
+{% endblock %}

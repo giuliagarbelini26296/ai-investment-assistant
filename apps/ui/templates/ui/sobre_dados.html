@@ -1,0 +1,63 @@
+{% extends "ui/base.html" %}
+{% block title %}Sobre os dados · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<div class="sobre">
+<h1>Sobre os dados</h1>
+<p>Cotações e câmbio vêm de fontes externas, cada uma com atraso, limites e termos próprios. O portal <strong>não é fonte primária</strong>, não estima valores ausentes e marca como "desatualizado" qualquer dado mais antigo do que o esperado. Sinais e alertas derivam apenas de regras definidas por você e <strong>não constituem recomendação de investimento</strong>. Rentabilidade exclui proventos, taxas, impostos e eventos corporativos.</p>
+{% if portal.MODO_DEMO %}<div class="aviso"><strong>Modo demonstração ativo.</strong> Todas as cotações e câmbios são sintéticos e determinísticos; nenhuma fonte real está em uso. Desligue com <code>PORTAL_MODO_DEMO=false</code> apenas após a homologação das fontes.</div>{% endif %}
+
+<h2>Fontes</h2>
+<table class="tabela">
+  <thead><tr><th>Fonte</th><th>Uso</th><th>Tipo de dado / atraso declarado</th><th>Limites</th><th>Consumo atual</th><th>Homologação</th><th>Termos</th></tr></thead>
+  <tbody>
+  {% for f in fontes %}
+    <tr>
+      <td><strong>{{ f.info.nome }}</strong><br><span class="texto-2">{{ f.info.codigo }}</span>{% if f.info.atribuicao %}<br><span class="nota">{{ f.info.atribuicao }}</span>{% endif %}</td>
+      <td>{{ f.papel }}{% if not f.em_uso %}<br><span class="texto-2">não ativa</span>{% endif %}</td>
+      <td>{{ f.tipo }}<br><span class="texto-2">{{ f.info.atraso_declarado_texto }}</span></td>
+      <td>{{ f.info.limites|default:"—" }}</td>
+      <td>{% for periodo, par in f.saldo.items %}{{ periodo }}: {{ par.0 }}/{{ par.1 }}<br>{% empty %}<span class="texto-2">sem limite configurado</span>{% endfor %}</td>
+      <td>{% if f.info.homologada %}<span class="badge badge-atual">homologada</span>{% else %}<span class="badge badge-desatualizado">não homologada</span>{% endif %}{% if f.info.observacoes %}<details><summary>detalhes</summary><p class="nota">{{ f.info.observacoes }}</p></details>{% endif %}</td>
+      <td>{% if f.info.termos_url %}<a href="{{ f.info.termos_url }}" rel="noopener" target="_blank">termos</a>{% else %}—{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="nota">"Atraso declarado" é o informado pela própria fonte. A diferença entre o horário da cotação e o relógio do portal mede apenas a idade informada — não comprova o atraso real contra o mercado. Fontes "não homologadas" têm o formato implementado conforme a documentação, sem captura real confirmada.</p>
+
+<h2>Calendários</h2>
+<table class="tabela">
+  <thead><tr><th>Mercado</th><th>Fuso</th><th>Situação agora</th><th>Sessão de referência</th><th>Anos cobertos</th></tr></thead>
+  <tbody>
+  {% for c in calendarios %}
+    <tr><td>{{ c.mercado }}</td><td>{{ c.fuso }}</td><td>{{ c.estado }}</td><td>{% if c.sessao %}{{ c.sessao.data|date:"d/m/Y" }} ({{ c.sessao.abertura|date:"H:i" }}–{{ c.sessao.fechamento|date:"H:i" }} hora local da bolsa){% else %}—{% endif %}</td><td>{{ c.anos|join:", " }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="nota">Feriados e horários estão versionados em <code>apps/marketdata/calendars/feriados.json</code> e devem ser confirmados com os calendários oficiais. Ano sem cobertura → estado "desconhecido" e alertas suspensos.</p>
+
+<h2>Coletor</h2>
+<table class="tabela">
+  <thead><tr><th>Tarefa</th><th>Última tentativa</th><th>Último sucesso</th><th>Último fechamento coletado</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for t in tarefas %}
+    <tr><td>{{ t.task }}</td><td>{{ t.last_attempt_at|date:"d/m H:i"|default:"—" }}</td><td>{{ t.last_success_at|date:"d/m H:i"|default:"—" }}</td><td>{{ t.last_close_date|date:"d/m/Y"|default:"—" }}</td><td>{{ t.last_status|default:"—" }}{% if t.last_error %}<br><span class="nota">{{ t.last_error|truncatechars:160 }}</span>{% endif %}</td></tr>
+  {% empty %}
+    <tr><td colspan="5" class="texto-2">O coletor ainda não executou nenhuma tarefa.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<h3>Últimas execuções</h3>
+<table class="tabela">
+  <thead><tr><th>Início</th><th>Tarefa</th><th>Fonte</th><th>Status</th><th class="num">Tentados</th><th class="num">OK</th><th class="num">Falhas</th><th>Detalhes</th></tr></thead>
+  <tbody>
+  {% for r in execucoes %}
+    <tr><td>{{ r.started_at|date:"d/m H:i:s" }}</td><td>{{ r.market }}</td><td>{{ r.source }}</td><td>{{ r.get_status_display }}</td><td class="num">{{ r.attempted }}</td><td class="num">{{ r.succeeded }}</td><td class="num">{{ r.failed }}</td><td>{% if r.error %}{{ r.error|truncatechars:120 }}{% endif %}{% for k, v in r.details.items %}<span class="nota">{{ k }}: {{ v }}</span><br>{% endfor %}</td></tr>
+  {% empty %}
+    <tr><td colspan="8" class="texto-2">Nenhuma execução registrada.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="nota">Gerado em {{ agora|date:"d/m/Y H:i" }} (horário de São Paulo).</p>
+</div>
+{% endblock %}

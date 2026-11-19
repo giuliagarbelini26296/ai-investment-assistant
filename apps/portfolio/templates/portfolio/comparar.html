@@ -1,0 +1,49 @@
+{% extends "ui/base.html" %}
+{% block title %}Comparar · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<h1>Comparar ativos <small class="texto-2">em {{ moeda }}</small></h1>
+<form method="get" class="filtros">
+  <fieldset class="selecao-ativos" id="selecao-comparar"><legend>Escolha os ativos</legend>
+    <label for="buscar-comparacao">Buscar por nome ou símbolo</label>
+    <input type="search" id="buscar-comparacao" placeholder="Ex.: Bitcoin ou BTC">
+    <p id="contagem-comparacao" class="nota" aria-live="polite"></p>
+    <div class="opcoes-ativos">{% for a in todos %}<label data-opcao-ativo="{{ a.symbol|lower }} {{ a.name|lower }}">
+      <input type="checkbox" name="ativos" value="{{ a.pk }}" {% if a.pk|stringformat:"s" in ids %}checked{% endif %}> <strong>{{ a.symbol }}</strong> — {{ a.name }}
+    </label>{% endfor %}</div>
+    <p id="comparacao-sem-resultados" hidden>Nenhum ativo encontrado.</p>
+  </fieldset>
+  <select name="periodo" aria-label="Período">{% for p in periodos %}<option value="{{ p }}" {% if p == periodo %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+  <button type="submit" class="botao">Comparar</button>
+  <span class="nota">Marque pelo menos dois ativos para comparar.</span>
+</form>
+{% if linhas|length >= 2 %}
+{% totais_tabela linhas as totais_comparacao %}
+<table class="tabela">
+  <thead><tr><th>Indicador</th>{% for l in linhas %}<th class="num"><a href="{% url 'asset_detail' l.asset.pk %}">{{ l.asset.symbol }}</a> <span class="texto-2">{{ l.asset.native_currency }}</span></th>{% endfor %}</tr></thead>
+  <tbody>
+    <tr><td>Mercado · custódia</td>{% for l in linhas %}<td class="num">{{ l.asset.get_market_display }} · {{ l.asset.get_custody_display }}</td>{% endfor %}</tr>
+{% if totais_comparacao %}    <tr><td>Quantidade</td>{% for l in linhas %}<td class="num">{% if l.posicao %}{{ l.posicao.quantidade|normalize_decimal }}{% else %}—{% endif %}</td>{% endfor %}</tr>{% endif %}
+{% if totais_comparacao %}    <tr><td>Preço médio (nativo)</td>{% for l in linhas %}<td class="num">{% if l.posicao %}{{ l.posicao.preco_medio|moeda:l.asset.native_currency }}{% else %}—{% endif %}</td>{% endfor %}</tr>{% endif %}
+    <tr><td>Preço atual (nativo)</td>{% for l in linhas %}<td class="num">{% if l.avaliacao %}{{ l.avaliacao.preco_atual|moeda:l.atualidade.cotacao.currency }}{% else %}<span class="texto-2">indisponível</span>{% endif %}</td>{% endfor %}</tr>
+    <tr><td>Variação do dia</td>{% for l in linhas %}<td class="num {% if l.avaliacao and l.avaliacao.variacao_dia_pct < 0 %}queda{% elif l.avaliacao and l.avaliacao.variacao_dia_pct %}alta{% endif %}">{% if l.avaliacao %}{{ l.avaliacao.variacao_dia_pct|pct }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+{% if totais_comparacao %}    <tr><td>Retorno (nativo)</td>{% for l in linhas %}<td class="num {% if l.avaliacao and l.avaliacao.retorno_pct < 0 %}queda{% elif l.avaliacao %}alta{% endif %}">{% if l.avaliacao %}{{ l.avaliacao.retorno_pct|pct }}{% else %}—{% endif %}</td>{% endfor %}</tr>{% endif %}
+{% if totais_comparacao %}    <tr><td>Investido ({{ moeda }})</td>{% for l in linhas %}<td class="num">{% if l.investido_visao is not None %}{{ l.investido_visao|moeda:moeda }}{% else %}<span class="texto-2">sem base cambial</span>{% endif %}</td>{% endfor %}</tr>{% endif %}
+{% if totais_comparacao %}    <tr><td>Valor atual ({{ moeda }})</td>{% for l in linhas %}<td class="num">{% if l.valor_atual_visao is not None %}{{ l.valor_atual_visao|moeda:moeda }}{% else %}<span class="texto-2">indisponível</span>{% endif %}</td>{% endfor %}</tr>{% endif %}
+{% if totais_comparacao %}    <tr><td>Resultado ({{ moeda }})</td>{% for l in linhas %}<td class="num {% if l.resultado_visao is not None and l.resultado_visao < 0 %}queda{% elif l.resultado_visao is not None %}alta{% endif %}">{% if l.resultado_visao is not None %}{{ l.resultado_visao|moeda:moeda }}{% else %}<span class="texto-2">indisponível</span>{% endif %}</td>{% endfor %}</tr>{% endif %}
+{% if totais_comparacao %}    <tr><td>Retorno ({{ moeda }})</td>{% for l in linhas %}<td class="num {% if l.retorno_visao is not None and l.retorno_visao < 0 %}queda{% elif l.retorno_visao is not None %}alta{% endif %}">{% if l.retorno_visao is not None %}{{ l.retorno_visao|pct }}{% else %}—{% endif %}</td>{% endfor %}</tr>{% endif %}
+{% if totais_comparacao %}    <tr><td>Efeito cambial ({{ moeda }})</td>{% for l in linhas %}<td class="num">{% if l.conversao %}{{ l.conversao.efeito_cambial|moeda:moeda }}{% else %}<span class="texto-2">n/a</span>{% endif %}</td>{% endfor %}</tr>{% endif %}
+    <tr><td>Atualidade</td>{% for l in linhas %}<td class="num">{% if l.atualidade %}<span class="badge badge-{{ l.atualidade.estado }}" title="{{ l.atualidade.descricao }}">{{ l.atualidade.rotulo }}</span>{% endif %}</td>{% endfor %}</tr>
+  </tbody>
+  {% totais_tabela linhas as totais %}
+  {% if totais_comparacao %}<tfoot>{% for t in totais %}<tr class="linha-total"><td colspan="{{ linhas|length|add:1 }}"><strong>Total dos selecionados em {{ t.moeda }}</strong> · Investido: {{ t.investido|moeda:t.moeda }} · Resultado: <span class="{% if t.resultado < 0 %}queda{% elif t.resultado > 0 %}alta{% endif %}">{% if t.resultado is not None %}{{ t.resultado|moeda:t.moeda }}{% else %}—{% endif %}</span> · Retorno: <span class="{% if t.retorno < 0 %}queda{% elif t.retorno > 0 %}alta{% endif %}">{% if t.retorno is not None %}{{ t.retorno|pct }}{% else %}—{% endif %}</span> · Dia: {% if t.dia is not None %}{{ t.dia|moeda:t.moeda }} ({{ t.dia_pct|pct }}){% else %}—{% endif %}<small class="total-cobertura">{{ t.avaliadas }} de {{ t.posicoes }} com cotação · totais separados por moeda quando falta base cambial</small></td></tr>{% endfor %}</tfoot>{% endif %}
+</table>
+<h2>Evolução relativa (base 100 no início do período, preço nativo)</h2>
+<div class="grafico"><canvas id="grafico-comparacao" height="120"></canvas></div>
+<p class="nota" id="grafico-comparacao-nota">Carregando…</p>
+<script>
+window.COMPARACAO = { periodo: "{{ periodo }}", series: [{% for l in linhas %}{ id: {{ l.asset.pk }}, simbolo: "{{ l.asset.symbol }}" }{% if not forloop.last %},{% endif %}{% endfor %}] };
+</script>
+{% elif ids %}
+<p class="estado">Escolha pelo menos dois ativos.</p>
+{% endif %}
+{% endblock %}

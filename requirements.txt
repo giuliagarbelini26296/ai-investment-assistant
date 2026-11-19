@@ -1,0 +1,21 @@
+# Versões fixadas em 29/10/2026 (E1). Atualizar de forma deliberada, com testes.
+Django==5.2.18
+psycopg[binary]==3.3.3
+httpx==0.28.1
+# decodificação de respostas comprimidas (Cloudflare pode responder br/zstd)
+brotli==1.1.0
+zstandard==0.23.0
+whitenoise==6.11.0
+gunicorn==24.1.0
+# Tradução local de títulos e resumos em inglês para português.
+ctranslate2==4.8.5
+sentencepiece==0.2.2
+
+# Public market data streams; no trading keys.
+websockets==15.0.1
+
+# Portal tracking workbook export (BSD-2-Clause).
+XlsxWriter==3.3.1
+
+# Notificações do app (Web Push, criptografia RFC 8291). Envio só para aparelhos inscritos.
+pywebpush==2.0.3

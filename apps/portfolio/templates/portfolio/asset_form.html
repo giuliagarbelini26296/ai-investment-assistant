@@ -1,0 +1,20 @@
+{% extends "ui/base.html" %}
+{% block title %}{{ titulo }} · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<h1>{{ titulo }}</h1>
+<form method="post" class="formulario">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for campo in form %}
+    <div class="campo{% if campo.errors %} com-erro{% endif %}">
+      {{ campo.label_tag }} {{ campo }}
+      {% if campo.help_text %}<small>{{ campo.help_text }}</small>{% endif %}
+      {{ campo.errors }}
+    </div>
+  {% endfor %}
+  <div class="acoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a href="{% if asset %}{% url 'asset_detail' asset.pk %}{% else %}{% url 'asset_list' %}{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

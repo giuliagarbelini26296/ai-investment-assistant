@@ -1,0 +1,85 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-portal_acoes}
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portal} -d ${POSTGRES_DB:-portal_acoes}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Sem porta publicada: o banco só é acessível pelos serviços do Compose.
+
+  migrate:
+    build: .
+    env_file: .env
+    command: python manage.py migrate --noinput
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: .
+    env_file: .env
+    ports:
+      # endereço de escuta vem do .env (PORTAL_BIND): 127.0.0.1 = só este Mac; 0.0.0.0 = rede local
+      - "${PORTAL_BIND:-127.0.0.1}:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/saude/', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  collector:
+    build: .
+    env_file: .env
+    command: python manage.py coletar
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  backup:
+    image: postgres:16
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-portal}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      PGDATABASE: ${POSTGRES_DB:-portal_acoes}
+      BACKUP_HORA: ${BACKUP_HORA:-03:00}
+      BACKUP_RETENCAO: ${BACKUP_RETENCAO:-7}
+      BACKUP_AO_INICIAR: ${BACKUP_AO_INICIAR:-false}
+      TZ: America/Sao_Paulo
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup_loop.sh:/backup_loop.sh:ro
+    entrypoint: ["/bin/sh", "/backup_loop.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  news:
+    build: .
+    env_file: .env
+    command: python manage.py coletar_noticias
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 1g
+
+volumes:
+  pgdata:

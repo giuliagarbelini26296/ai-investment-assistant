@@ -1,0 +1,89 @@
+<form method="get" class="form-comparar">
+  <div class="barra-tabela">
+    <div class="filtros-rapidos">
+      <span class="texto-2 mini">Moeda comum:</span>
+      <label class="chip{% if moeda == 'BRL' %} ativo{% endif %}"><input type="radio" name="moeda" value="BRL" {% if moeda == 'BRL' %}checked{% endif %} hidden>R$</label>
+      <label class="chip{% if moeda == 'USD' %} ativo{% endif %}"><input type="radio" name="moeda" value="USD" {% if moeda == 'USD' %}checked{% endif %} hidden>US$</label>
+      <span class="texto-2 mini">Período:</span>
+      {% for k, rot in periodos_comp %}<label class="chip{% if k == periodo %} ativo{% endif %}"><input type="radio" name="periodo" value="{{ k }}" {% if k == periodo %}checked{% endif %} hidden>{{ rot }}</label>{% endfor %}
+    </div>
+    <button type="submit" class="botao">Comparar</button>
+  </div>
+  <details class="selecao-ativos" {% if not linhas %}open{% endif %}>
+    <summary>Ativos ({{ ids|length }} de até 8) — clique para escolher</summary>
+    <div class="grade-escolha">
+      {% for a in candidatos %}<label class="mini"><input type="checkbox" name="ativos" value="{{ a.pk }}" {% if a.pk in ids %}checked{% endif %}> {{ a.symbol }} <span class="texto-2">{{ a.tipo_rotulo }} · {{ a.get_market_display }}</span></label>{% endfor %}
+    </div>
+  </details>
+</form>
+
+{% if linhas %}
+<section class="cartao">
+  <div class="barra-grafico"><strong>Desempenho em {{ moeda }} (base 100)</strong><span class="espaco"></span>
+    <button type="button" class="chip ativo" data-comp-serie="moeda">em {{ moeda }} (com câmbio)</button>
+    <button type="button" class="chip" data-comp-serie="nativa">moeda nativa (sem câmbio)</button>
+  </div>
+  <div class="grafico alto"><canvas id="grafico-comparar"></canvas></div>
+  <script type="application/json" id="dados-comparar">{{ series|safe_json }}</script>
+  <script type="application/json" id="dados-comparar-nativo">{{ series_nativas|safe_json }}</script>
+  <p class="nota">Cada série começa em 100 na data-base. "Com câmbio": preço de cada data convertido pelo PTAX da data (hoje: câmbio atual{% if cambio.atual %}, USD/BRL {{ cambio.atual|numero:4 }} · {{ cambio.rotulo }}{% endif %}). "Moeda nativa": sem conversão.</p>
+</section>
+
+<h2>Desempenho e risco em {{ moeda }}</h2>
+<div class="rolagem-x">
+<table class="tabela ordenavel tabela-comparar">
+  <thead><tr>
+    <th data-sort="txt">Ativo</th>
+    <th class="num" data-sort="num">Retorno na moeda nativa</th>
+    <th class="num" data-sort="num">Efeito cambial</th>
+    <th class="num" data-sort="num">Retorno em {{ moeda }}</th>
+    <th class="num" data-sort="num">Com proventos</th>
+    <th class="num" data-sort="num">Volatilidade<br><span class="mini texto-2">anualizada</span></th>
+    <th class="num" data-sort="num">Queda máxima</th>
+    <th>Fonte e horário</th>
+  </tr></thead>
+  <tbody>
+  {% for li in linhas %}{% with x=li.x %}
+    <tr>
+      <td>{% include "mercado/_ativo_celula.html" with sem_nome=1 %}<div class="mini texto-2">{{ x.asset.get_market_display }} · {{ x.moeda }}{% if li.base_data %} · desde {{ li.base_data|date:"d/m/y" }}{% endif %}</div></td>
+      <td class="num {{ li.retorno_nativo|sinal_classe }}" data-value="{{ li.retorno_nativo|bruto }}">{{ li.retorno_nativo|pct:1 }}</td>
+      <td class="num {{ li.efeito_cambial|sinal_classe }}" data-value="{{ li.efeito_cambial|bruto }}">{% if li.efeito_cambial is not None %}{{ li.efeito_cambial|pct:1 }}{% elif x.moeda == moeda or x.moeda == "USDT" and moeda == "USD" %}<span class="mini texto-2">mesma moeda</span>{% else %}—{% endif %}</td>
+      <td class="num {{ li.retorno_moeda|sinal_classe }}" data-value="{{ li.retorno_moeda|bruto }}"><strong>{{ li.retorno_moeda|pct:1 }}</strong></td>
+      <td class="num {{ li.retorno_com_proventos|sinal_classe }}" data-value="{{ li.retorno_com_proventos|bruto }}" title="{{ li.proventos_situacao }}">{% if li.retorno_com_proventos is not None %}{{ li.retorno_com_proventos|pct:1 }}<br><span class="mini texto-2">+ {{ li.proventos_moeda|preco:moeda }}/ação</span>{% else %}<span class="mini texto-2">{{ li.proventos_situacao|default:"—" }}</span>{% endif %}</td>
+      <td class="num" data-value="{{ li.volatilidade|bruto }}">{% if li.volatilidade is not None %}{{ li.volatilidade|numero:0 }}%{% else %}—{% endif %}</td>
+      <td class="num queda" data-value="{{ li.queda_maxima|bruto }}">{% if li.queda_maxima is not None %}{{ li.queda_maxima|pct:1 }}{% else %}—{% endif %}</td>
+      <td class="mini">{% include "mercado/_atualidade.html" %}{% if x.atualidade.cotacao.declared_delay_minutes %}<br><span class="texto-2">atraso declarado ~{{ x.atualidade.cotacao.declared_delay_minutes }} min</span>{% endif %}{% for a in li.avisos %}<br><span class="queda">{{ a }}</span>{% endfor %}</td>
+    </tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Fundamentos e potencial</h2>
+<div class="rolagem-x">
+<table class="tabela ordenavel">
+  <thead><tr>
+    <th data-sort="txt">Ativo</th><th class="num" data-sort="num">P/L</th><th class="num" data-sort="num">P/VP</th><th class="num" data-sort="num">ROE</th><th class="num" data-sort="num">DY</th><th class="num" data-sort="num">EV/EBITDA</th>
+    <th class="num" data-sort="num">Potencial<br><span class="mini texto-2">alvo dos analistas</span></th><th data-sort="num">Score</th><th data-sort="txt">Risco</th>
+  </tr></thead>
+  <tbody>
+  {% for li in linhas %}{% with x=li.x f=li.x.fundamentos %}
+    <tr>
+      <td>{% include "mercado/_ativo_celula.html" with sem_nome=1 %}</td>
+      <td class="num" data-value="{{ f.pe|bruto }}">{{ f.pe|numero:1 }}</td>
+      <td class="num" data-value="{{ f.price_to_book|bruto }}">{{ f.price_to_book|numero:2 }}</td>
+      <td class="num" data-value="{{ f.roe|bruto }}">{% if f and f.roe is not None %}{{ f.roe|multiplicar:100|pct:1 }}{% else %}—{% endif %}</td>
+      {% with dy=x.dy %}<td class="num" data-value="{{ dy.0|bruto }}" title="{{ dy.1 }}">{% if dy.0 is not None %}{{ dy.0|numero:1 }}%{% else %}—{% endif %}</td>{% endwith %}
+      <td class="num" data-value="{{ f.ev_ebitda|bruto }}">{{ f.ev_ebitda|numero:1 }}</td>
+      <td class="num {{ x.score.potencial_pct|sinal_classe }}" data-value="{{ x.score.potencial_pct|bruto }}">{% if x.score.potencial_pct is not None %}{{ x.score.potencial_pct|pct:1 }}{% else %}—{% endif %}</td>
+      <td data-value="{{ x.score.total|default:0 }}">{% include "mercado/_score.html" %}</td>
+      <td>{% if x.score %}<span class="risco risco-{{ x.score.risco }}">{{ x.score.risco }}</span>{% else %}—{% endif %}</td>
+    </tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="nota">Retorno em {{ moeda }} = (1 + retorno na moeda nativa) × (câmbio atual ÷ PTAX da data-base) − 1; efeito cambial = diferença entre os dois. "Com proventos" soma os dividendos/JCP brutos por ação com data-com no período (convertidos pelo PTAX da data-com), sem reinvestimento e sem descontar impostos (JCP tem IR retido na fonte); aparece só quando a fonte entregou o histórico (brapi Startup/Pro para B3; Alpha Vantage para EUA). Volatilidade e queda máxima na série diária convertida. Potencial = distância até o preço-alvo médio na moeda nativa (projeção de analistas). {{ aviso_metodologia }}</p>
+{% else %}
+<p class="estado">Escolha ao menos um ativo acima.</p>
+{% endif %}

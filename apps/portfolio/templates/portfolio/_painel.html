@@ -1,0 +1,42 @@
+{% comment %}Painel expansível de um ativo dentro da tabela da carteira (GET ativos/<id>/painel/).{% endcomment %}
+<div class="painel-ativo" data-id="{{ asset.pk }}">
+  <div class="painel-col painel-grafico">
+    {% if tem_historico %}
+      <div class="barra-grafico mini">
+        <strong>{{ asset.symbol }}</strong> <span class="texto-2">{{ asset.name }}</span>
+        <span class="espaco"></span>
+        {% for p in "1s,1m,6m,1a"|split:"," %}<button type="button" class="chip {% if p == '1m' %}ativo{% endif %}" data-painel-periodo="{{ p }}">{{ p|upper }}</button>{% endfor %}
+      </div>
+      <canvas class="grafico-painel" data-url="{% url 'historico_json' asset.pk %}" data-moeda="{{ asset.native_currency }}" height="90"></canvas>
+      <script type="application/json" class="linhas-painel">{{ linhas_grafico|safe_json }}</script>
+      <p class="nota grafico-painel-nota">Carregando…</p>
+    {% else %}
+      <p class="nota">Sem histórico carregado. <code>manage.py carregar_historico --simbolo {{ asset.symbol }} --dias 365</code></p>
+    {% endif %}
+  </div>
+  <div class="painel-col">
+    <h4>Compras <span class="texto-2">({{ lotes|length }})</span></h4>
+    {% if lotes %}
+    <table class="tabela compacta">
+      <thead><tr><th>Data</th><th class="num">Qtd</th><th class="num">Preço</th>{% if asset.native_currency != "BRL" %}<th class="num">Câmbio</th>{% endif %}<th></th></tr></thead>
+      <tbody>
+      {% for lot in lotes %}
+        <tr><td>{{ lot.trade_date|date:"d/m/y" }}</td><td class="num">{{ lot.quantity|normalize_decimal }}</td><td class="num">{{ lot.unit_price|moeda:asset.native_currency }}</td>{% if asset.native_currency != "BRL" %}<td class="num">{% if lot.fx_resolved %}{{ lot.fx_resolved|normalize_decimal|slice:":6" }}{% else %}—{% endif %}</td>{% endif %}<td class="acoes-linha"><a href="{% url 'lot_update' lot.pk %}">editar</a></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="nota">Nenhuma compra.</p>{% endif %}
+    {% if posicao %}<p class="nota">Preço médio {{ posicao.preco_medio|moeda:asset.native_currency }} · investido {{ posicao.investido|moeda:asset.native_currency }}{% if avaliacao %} · resultado <span class="{% if avaliacao.resultado < 0 %}queda{% else %}alta{% endif %}">{{ avaliacao.resultado|moeda:asset.native_currency }} ({{ avaliacao.retorno_pct|pct }})</span>{% endif %}</p>{% endif %}
+  </div>
+  <div class="painel-col">
+    <h4>Alertas <span class="texto-2">({{ regras|length }} regra(s))</span></h4>
+    {% if alertas %}<ul class="lista-simples">{% for a in alertas %}<li><span class="badge badge-alerta">ativo</span> {{ a.version.descricao }} <span class="texto-2">· {{ a.triggered_at|date:"d/m H:i" }}</span></li>{% endfor %}</ul>{% endif %}
+    {% if regras %}<ul class="lista-simples">{% for v in regras %}<li>{{ v.descricao }}{% if not v.rule.asset_id %} <span class="texto-2">(global)</span>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="nota">Nenhuma regra para este ativo.</p>{% endif %}
+    <p class="nota">{{ atualidade.descricao }}</p>
+    <div class="acoes-carteira">
+      <a class="chip" href="{% url 'quick_purchase' %}?ativo={{ asset.pk }}">+ compra</a>
+      <a class="chip" href="{% url 'regra_nova' %}?ativo={{ asset.pk }}">+ alerta</a>
+      <a class="chip" href="{% url 'asset_detail' asset.pk %}">página completa →</a>
+    </div>
+  </div>
+</div>

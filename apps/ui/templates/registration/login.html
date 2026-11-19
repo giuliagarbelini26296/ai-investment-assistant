@@ -1,0 +1,18 @@
+{% extends "ui/base.html" %}
+{% block title %}Entrar · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<div class="caixa-login">
+  <h1>Entrar</h1>
+  {% if form.errors %}<p class="erro">Usuário ou senha inválidos.</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <label for="id_username">Usuário</label>
+    <input type="text" name="username" id="id_username" autocomplete="username" required autofocus>
+    <label for="id_password">Senha</label>
+    <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Entrar</button>
+  </form>
+  <p class="nota">Contas são criadas pelo administrador (<code>manage.py createsuperuser</code>). Não há cadastro público.</p>
+</div>
+{% endblock %}

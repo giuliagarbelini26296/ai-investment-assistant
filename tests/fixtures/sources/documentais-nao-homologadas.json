@@ -1,0 +1,43 @@
+{
+  "_aviso": "Respostas MONTADAS A PARTIR DA DOCUMENTAÇÃO PÚBLICA de cada fonte (29/10/2026), NÃO capturadas ao vivo. Servem para testar o parser; a homologação exige captura real com `manage.py homologar_fonte`. Valores numéricos são ilustrativos e não são cotações.",
+  "twelvedata_quote_single": {
+    "symbol": "TTWO", "name": "Take-Two Interactive Software, Inc.", "exchange": "NASDAQ", "mic_code": "XNGS",
+    "currency": "USD", "datetime": "2026-10-29", "timestamp": 1793285100,
+    "open": "180.00", "high": "182.50", "low": "179.10", "close": "181.23", "volume": "1234567",
+    "previous_close": "180.10", "change": "1.13", "percent_change": "0.63", "is_market_open": true
+  },
+  "twelvedata_quote_batch": {
+    "TTWO": {"symbol": "TTWO", "currency": "USD", "timestamp": 1793285100, "close": "181.23", "previous_close": "180.10", "is_market_open": true},
+    "AAPL": {"symbol": "AAPL", "currency": "USD", "timestamp": 1793285100, "close": "250.01", "previous_close": "248.00", "is_market_open": true},
+    "XXXX": {"code": 400, "message": "**symbol** not found: XXXX. Please specify it correctly according to API Documentation.", "status": "error"}
+  },
+  "twelvedata_error_401": {"code": 401, "message": "**apikey** parameter is incorrect or not specified.", "status": "error"},
+  "twelvedata_error_429": {"code": 429, "message": "You have run out of API credits for the current minute.", "status": "error"},
+  "twelvedata_time_series": {
+    "meta": {"symbol": "TTWO", "interval": "1day", "currency": "USD", "exchange_timezone": "America/New_York", "exchange": "NASDAQ", "type": "Common Stock"},
+    "values": [
+      {"datetime": "2026-10-29", "open": "180.00", "high": "182.50", "low": "179.10", "close": "181.23", "volume": "1234567"},
+      {"datetime": "2026-10-28", "open": "178.00", "high": "180.90", "low": "177.50", "close": "180.10", "volume": "1100000"},
+      {"datetime": "2026-10-27", "open": "176.40", "high": "178.30", "low": "176.00", "close": "178.00", "volume": "980000"}
+    ],
+    "status": "ok"
+  },
+  "binance_ticker_24hr_batch": [
+    {"symbol": "BTCUSDT", "priceChange": "-1200.50000000", "priceChangePercent": "-1.456", "prevClosePrice": "82408.47000000", "lastPrice": "81207.97000000", "closeTime": 1793285500123},
+    {"symbol": "BTCBRL", "priceChange": "-6000.00000000", "priceChangePercent": "-1.370", "prevClosePrice": "438000.00000000", "lastPrice": "432000.00000000", "closeTime": 1793285500456}
+  ],
+  "binance_error_invalid_symbol": {"code": -1121, "msg": "Invalid symbol."},
+  "binance_klines": [
+    [1793145600000, "80000.00", "82500.00", "79500.00", "82408.47", "12345.678", 1793231999999, "0", 100, "0", "0", "0"],
+    [1793232000000, "82408.47", "82900.00", "80900.00", "81207.97", "9876.543", 1793318399999, "0", 90, "0", "0", "0"]
+  ],
+  "ptax_dia": {
+    "@odata.context": "https://was-p.bcnet.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata$metadata#_CotacaoDolarDia",
+    "value": [{"cotacaoCompra": 5.3271, "cotacaoVenda": 5.3277, "dataHoraCotacao": "2026-10-28 13:09:37.513"}]
+  },
+  "ptax_dia_vazio": {"@odata.context": "...", "value": []},
+  "awesomeapi_last": {
+    "USDBRL": {"code": "USD", "codein": "BRL", "name": "Dólar Americano/Real Brasileiro", "high": "5.3480", "low": "5.3150",
+               "varBid": "-0.0120", "pctChange": "-0.22", "bid": "5.3301", "ask": "5.3309", "timestamp": "1793285400", "create_date": "2026-10-29 13:00:00"}
+  }
+}

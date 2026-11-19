@@ -1,0 +1,141 @@
+{
+  "_aviso": "Capturas REAIS de 30/10/2026 ~17:57 ET na máquina do usuário (homologar_fonte --salvar). Os valores abaixo reproduzem os campos devolvidos pelas fontes conforme a saída normalizada e os arquivos docs/homologacao/*-20261030-*.json; campos não usados pelos parsers podem estar omitidos.",
+  "twelvedata_quote_ttwo_fechado": {
+    "symbol": "TTWO",
+    "name": "Take-Two Interactive Software, Inc.",
+    "exchange": "NASDAQ",
+    "currency": "USD",
+    "datetime": "2026-10-30",
+    "timestamp": 1793367000,
+    "open": "192.33000",
+    "high": "194.34000",
+    "low": "183.86000",
+    "close": "190.17000",
+    "volume": "3564157",
+    "previous_close": "193.39000",
+    "change": "-3.22000",
+    "percent_change": "-1.66504",
+    "is_market_open": false
+  },
+  "twelvedata_time_series_ttwo_ultimos": {
+    "meta": {
+      "symbol": "TTWO",
+      "interval": "1day",
+      "currency": "USD",
+      "exchange_timezone": "America/New_York",
+      "exchange": "NASDAQ",
+      "type": "Common Stock"
+    },
+    "values": [
+      {
+        "datetime": "2026-10-30",
+        "open": "192.33000",
+        "high": "194.34000",
+        "low": "183.86000",
+        "close": "190.17000",
+        "volume": "3564157"
+      },
+      {
+        "datetime": "2026-10-29",
+        "open": "196.23000",
+        "high": "196.42999",
+        "low": "191.58000",
+        "close": "193.39000",
+        "volume": "2309800"
+      },
+      {
+        "datetime": "2026-10-28",
+        "open": "200.23000",
+        "high": "201.5",
+        "low": "195.029999",
+        "close": "195.28999",
+        "volume": "2114100"
+      }
+    ],
+    "status": "ok"
+  },
+  "binance_ticker_24hr_btc": [
+    {
+      "symbol": "BTCUSDT",
+      "priceChange": "-2081.74000000",
+      "priceChangePercent": "-2.635",
+      "weightedAvgPrice": "77500.00000000",
+      "prevClosePrice": "79005.74000000",
+      "lastPrice": "76924.00000000",
+      "lastQty": "0.00100000",
+      "bidPrice": "76923.99000000",
+      "askPrice": "76924.00000000",
+      "openPrice": "79005.74000000",
+      "highPrice": "79100.00000000",
+      "lowPrice": "76325.98000000",
+      "volume": "23271.05913000",
+      "quoteVolume": "1803000000.00000000",
+      "openTime": 1793307468006,
+      "closeTime": 1793393868006,
+      "firstId": 1,
+      "lastId": 2,
+      "count": 2
+    },
+    {
+      "symbol": "BTCBRL",
+      "priceChange": "-11602.00000000",
+      "priceChangePercent": "-2.678",
+      "weightedAvgPrice": "418000.00000000",
+      "prevClosePrice": "426050.00000000",
+      "lastPrice": "414448.00000000",
+      "lastQty": "0.00100000",
+      "bidPrice": "414400.00000000",
+      "askPrice": "414448.00000000",
+      "openPrice": "426050.00000000",
+      "highPrice": "427000.00000000",
+      "lowPrice": "412000.00000000",
+      "volume": "50.00000000",
+      "quoteVolume": "20900000.00000000",
+      "openTime": 1793307467922,
+      "closeTime": 1793393867922,
+      "firstId": 1,
+      "lastId": 2,
+      "count": 2
+    }
+  ],
+  "binance_klines_btcusdt_ultimos": [
+    [
+      1793232000000,
+      "81343.51000000",
+      "81971.00000000",
+      "77910.00000000",
+      "77991.89000000",
+      "23832.18298000",
+      1793318399999,
+      "0",
+      0,
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      1793318400000,
+      "77991.89000000",
+      "78804.01000000",
+      "76325.98000000",
+      "76924.00000000",
+      "23271.05913000",
+      1793404799999,
+      "0",
+      0,
+      "0",
+      "0",
+      "0"
+    ]
+  ],
+  "ptax_dia_2026_10_30": {
+    "@odata.context": "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata$metadata#_CotacaoDolarDia",
+    "value": [
+      {
+        "cotacaoCompra": 5.4206,
+        "cotacaoVenda": 5.4212,
+        "dataHoraCotacao": "2026-10-30 13:04:18.706316"
+      }
+    ]
+  }
+}

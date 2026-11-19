@@ -1,0 +1,56 @@
+{% extends "ui/base.html" %}
+{% block title %}Notícias · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<section class="noticias-intro">
+  <div>
+    <span class="noticias-sobretitulo">Informação para acompanhar o mercado</span>
+    <h1>Central de Notícias</h1>
+    <p>Brasil e mundo, com um olhar para sua carteira. Títulos e resumos internacionais em português.</p>
+  </div>
+  <form method="post" action="{% url 'noticias:refresh' %}">{% csrf_token %}<button class="botao" type="submit">↻ Atualizar notícias</button></form>
+</section>
+<div class="noticias-status" role="status">
+  <span class="noticia-status-ponto" aria-hidden="true"></span>
+  <span>{% if last_update %}Fontes verificadas em <strong>{{ last_update|date:"d/m H:i" }}</strong>{% else %}Aguardando a primeira atualização{% endif %}</span>
+  <span>Verificação a cada 15 minutos · horários de São Paulo</span>
+</div>
+<div class="noticias-estatisticas">
+  <span><strong>{{ counts.brasil|default:0 }}</strong> do Brasil</span>
+  <span><strong>{{ counts.internacional|default:0 }}</strong> internacionais</span>
+  <span>Período: últimos <strong>{{ dias }} dia{% if dias != '1' %}s{% endif %}</strong></span>
+  {% if pending %}<span>{{ pending }} {% if pending == 1 %}tradução pendente{% else %}traduções pendentes{% endif %}</span>{% endif %}
+</div>
+<nav class="noticias-abas" aria-label="Região das notícias">
+  {% for tab in regions %}<a href="{{ tab.url }}"{% if regiao == tab.value %} class="ativo" aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}
+</nav>
+<form method="get" class="noticias-filtros" role="search">
+  <input type="hidden" name="regiao" value="{{ regiao }}">
+  <label class="noticias-busca">Buscar notícia ou ativo<input type="search" name="q" value="{{ q }}" placeholder="Empresa, assunto ou símbolo…" maxlength="100"></label>
+  <label>Acompanhamento<select name="escopo"><option value="todos">Todos</option><option value="carteira"{% if escopo == 'carteira' %} selected{% endif %}>Minha carteira</option><option value="favoritos"{% if escopo == 'favoritos' %} selected{% endif %}>Meus favoritos</option></select></label>
+  <label>Tema<select name="tema"><option value="">Todos os temas</option>{% for value,label in topics %}<option value="{{ value }}"{% if tema == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Período<select name="dias"><option value="1"{% if dias == '1' %} selected{% endif %}>Últimas 24 horas</option><option value="7"{% if dias == '7' %} selected{% endif %}>Últimos 7 dias</option><option value="30"{% if dias == '30' %} selected{% endif %}>Últimos 30 dias</option></select></label>
+  <label>Fonte<select name="fonte"><option value="">Todas as fontes</option>{% for pub in publishers %}<option value="{{ pub }}"{% if fonte == pub %} selected{% endif %}>{{ pub }}</option>{% endfor %}</select></label>
+  <label>Ativo<select name="ativo"><option value="">Todos os ativos</option>{% for a in assets %}<option value="{{ a.pk }}"{% if ativo == a.pk|stringformat:'s' %} selected{% endif %}>{{ a.symbol }}</option>{% endfor %}</select></label>
+  <button class="botao" type="submit">Filtrar</button><a class="noticias-limpar" href="{% url 'noticias:index' %}">Limpar filtros</a>
+</form>
+<section id="noticias-feed" aria-label="Lista de notícias">
+<div class="noticias-resultado"><h2>{% if escopo == 'carteira' %}Na sua carteira{% elif escopo == 'favoritos' %}Nos seus favoritos{% else %}Últimas notícias{% endif %}</h2><span>{{ page.paginator.count }} matéria{{ page.paginator.count|pluralize }} · mais recentes primeiro</span></div>
+{% if page.object_list %}
+<div class="noticias-grade">{% for n in page %}{% include "noticias/_card.html" %}{% endfor %}</div>
+{% else %}
+<div class="noticias-vazio"><h2>Nenhuma notícia neste filtro</h2><p>Tente ampliar o período ou escolher outro assunto. As fontes continuam sendo verificadas em segundo plano.</p><a href="{% url 'noticias:index' %}">Ver todas as notícias</a></div>
+{% endif %}
+{% if page.has_other_pages %}
+<nav class="noticias-paginacao" aria-label="Páginas de notícias">
+  {% if page.has_previous %}<a class="chip" href="?{{ pagination_query }}&amp;pagina={{ page.previous_page_number }}">← Anterior</a>{% endif %}
+  <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="chip" href="?{{ pagination_query }}&amp;pagina={{ page.next_page_number }}">Próxima →</a>{% endif %}
+</nav>
+{% endif %}
+</section>
+<details class="noticias-fontes"><summary>Fontes e atualizações</summary>
+  <div class="noticias-fontes-lista">{% for s in states %}<div><strong>{{ s.name }}</strong><span>{% if s.last_error %}Atualização temporariamente indisponível{% elif s.last_success_at %}Verificada em {{ s.last_success_at|date:"d/m H:i" }}{% else %}Aguardando atualização{% endif %}</span></div>{% empty %}<p>A primeira coleta ainda será concluída.</p>{% endfor %}</div>
+  <p class="nota">A data de publicação é informada pelo veículo. A verificação do portal não significa que todas as fontes publicaram conteúdo novo. Traduções automáticas podem conter imprecisões; consulte o original para conferir termos e números. As matérias completas abrem no site da fonte, no idioma original.</p>
+  <p class="nota">Tradução local: Argos Translate / OPUS-MT, inglês → português, modelo 1.9 (CC BY 4.0). Autores: Jörg Tiedemann e Santhosh Thottingal. <a href="https://www.argosopentech.com/" target="_blank" rel="noopener noreferrer">Sobre o projeto</a>.</p>
+</details>
+{% endblock %}

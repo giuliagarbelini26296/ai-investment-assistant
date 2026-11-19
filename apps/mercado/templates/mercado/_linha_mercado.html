@@ -1,0 +1,22 @@
+<tr data-busca="{{ li.x.asset.symbol|lower }} {{ li.x.asset.name|lower }}">
+  <td>{% include "mercado/_ativo_celula.html" with x=li.x sem_nome=1 %}<div class="mini texto-2 truncar">{{ li.x.asset.name }}</div></td>
+  <td class="num" data-value="{{ li.preco_moeda|bruto }}">{{ li.preco_moeda|preco:li.moeda }}{% if li.moeda != li.x.moeda %}<br><span class="mini texto-2">{{ li.x.preco|preco:li.x.moeda }}</span>{% endif %}<br>{% include "mercado/_atualidade.html" with x=li.x %}</td>
+  <td class="num {{ li.ret.moeda|sinal_classe }}" data-value="{{ li.ret.moeda|bruto }}"><strong>{{ li.ret.moeda|pct }}</strong>{% if li.moeda != li.x.moeda and li.ret.efeito_cambial is not None %}<br><span class="mini texto-2">ativo {{ li.ret.nativo|pct:1 }} · câmbio {{ li.ret.efeito_cambial|pct:1 }}</span>{% elif li.moeda != li.x.moeda and periodo == "1d" %}<br><span class="mini texto-2">variação em {{ li.x.moeda }}</span>{% endif %}</td>
+  <td class="num" data-value="{{ li.x.ind.dist_minima_52s_pct|bruto }}">{% if li.x.ind and li.x.ind.janela_52s_dias >= 180 %}<span class="alta" title="vs. mínima de 52 semanas">{{ li.x.ind.dist_minima_52s_pct|pct:1 }}</span><br><span class="queda" title="vs. máxima de 52 semanas">{{ li.x.ind.dist_maxima_52s_pct|pct:1 }}</span>{% if not li.x.ind.janela_52s_completa %}<br><span class="mini texto-2">janela {{ li.x.ind.janela_52s_dias }} d</span>{% endif %}{% else %}<span class="texto-2 mini">histórico curto{% if li.x.ind %} ({{ li.x.ind.janela_52s_dias }} d){% endif %}</span>{% endif %}</td>
+  {% with f=li.x.fundamentos %}
+  <td class="num" data-value="{{ f.pe|bruto }}">{{ f.pe|numero:1 }}</td>
+  {% if mercado_nome == "EUA" %}
+  <td class="num" data-value="{{ f.ev_ebitda|bruto }}">{{ f.ev_ebitda|numero:1 }}</td>
+  <td class="num" data-value="{{ f.revenue_growth|bruto }}">{% if f and f.revenue_growth is not None %}<span class="{{ f.revenue_growth|sinal_classe }}">{{ f.revenue_growth|multiplicar:100|pct:1 }}</span>{% else %}—{% endif %}</td>
+  {% else %}
+  <td class="num" data-value="{{ f.price_to_book|bruto }}">{{ f.price_to_book|numero:2 }}</td>
+  <td class="num" data-value="{{ f.roe|bruto }}">{% if f and f.roe is not None %}{{ f.roe|multiplicar:100|pct:1 }}{% else %}—{% endif %}</td>
+  <td class="num" data-value="{{ f.net_debt_ebitda|bruto }}">{{ f.net_debt_ebitda|numero:2 }}{% if f.net_debt_calculado %}<span class="mini texto-2" title="calculado pelo portal: (dívida total − caixa) / EBITDA">*</span>{% endif %}</td>
+  {% with dy=li.x.dy %}<td class="num" data-value="{{ dy.0|bruto }}" title="{{ dy.1 }}">{% if dy.0 is not None %}{{ dy.0|numero:1 }}%{% else %}—{% endif %}</td>{% endwith %}
+  {% endif %}
+  {% endwith %}
+  <td class="num" data-value="{{ li.x.score.potencial_pct|bruto }}">{% if li.x.preco_alvo %}{{ li.x.preco_alvo.mean|preco:li.x.moeda }}<br><span class="{{ li.x.score.potencial_pct|sinal_classe }}">{{ li.x.score.potencial_pct|pct:1 }}</span>{% else %}<span class="texto-2">—</span>{% endif %}
+  <br><span class="mini nowrap">{% if li.x.analistas %}{{ li.x.analistas.consenso }} ({{ li.x.analistas.total }}) <span class="texto-2">{{ li.x.analistas.source }}</span>{% elif li.x.fundamentos.recommendation_key %}{{ li.x.fundamentos.recommendation_key }}{% if li.x.fundamentos.analyst_opinions %} ({{ li.x.fundamentos.analyst_opinions }}){% endif %} <span class="texto-2">{{ li.x.fundamentos.fontes.recommendation_key }}</span>{% else %}<span class="texto-2">sem analistas</span>{% endif %}</span></td>
+  <td data-value="{{ li.x.score.total|default:0 }}">{% include "mercado/_score.html" with x=li.x %}</td>
+  <td class="mini nowrap">{% if li.x.proximo_resultado %}<span title="resultado trimestral">res. {{ li.x.proximo_resultado.date|date:"d/m" }}</span>{% elif li.x.proximos_proventos %}{% with pv=li.x.proximos_proventos.0 %}<span title="{{ pv.tipo|title }} de {{ pv.valor|numero:4 }} {{ pv.moeda }}/ação">{{ pv.tipo|slice:":3"|lower }}. {{ pv.data_com|default:pv.data_pagamento|date:"d/m" }}</span>{% endwith %}{% else %}—{% endif %}</td>
+</tr>

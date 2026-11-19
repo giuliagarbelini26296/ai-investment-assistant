@@ -1,0 +1,27 @@
+{% if top10 %}
+<div class="rolagem-x">
+<table class="tabela ordenavel tabela-top10">
+  <thead><tr>
+    <th class="num" data-sort="num">#</th><th data-sort="txt">Ativo</th><th class="num" data-sort="num">Preço atual</th>
+    <th class="num" data-sort="num" title="1 mês · 3 meses · distância da máxima de 52 semanas">Queda acumulada<br><span class="mini texto-2">1m · 3m · vs. máx. 52s</span></th>
+    <th class="num" data-sort="num">Preço-alvo<br><span class="mini texto-2">potencial</span></th>
+    <th data-sort="num">Atratividade</th><th data-sort="txt">Risco<br><span class="mini texto-2">perspectiva</span></th>
+  </tr></thead>
+  <tbody>
+  {% for x in top10 %}
+    <tr>
+      <td class="num">{{ forloop.counter }}</td>
+      <td>{% include "mercado/_ativo_celula.html" %}</td>
+      <td class="num" data-value="{{ x.preco|bruto }}">{{ x.preco|preco:x.moeda }}<br>{% include "mercado/_atualidade.html" %}</td>
+      <td class="num" data-value="{{ x.ind.periodos.1m.variacao_pct|bruto }}"><span class="{{ x.ind.periodos.1m.variacao_pct|sinal_classe }}">{{ x.ind.periodos.1m.variacao_pct|pct:1 }}</span> · <span class="{{ x.ind.periodos.3m.variacao_pct|sinal_classe }}">{{ x.ind.periodos.3m.variacao_pct|pct:1 }}</span><br><span class="mini queda">{{ x.ind.dist_maxima_52s_pct|pct:1 }} da máx.</span></td>
+      <td class="num" data-value="{{ x.score.potencial_pct|bruto }}">{% if x.preco_alvo %}{{ x.preco_alvo.mean|preco:"USD" }}<br><span class="{{ x.score.potencial_pct|sinal_classe }}">{{ x.score.potencial_pct|pct:1 }}</span> <span class="mini texto-2">{{ x.preco_alvo.source }}</span>{% else %}<span class="texto-2">—</span>{% endif %}</td>
+      <td data-value="{{ x.score.total }}">{% include "mercado/_score.html" %}</td>
+      <td><span class="risco risco-{{ x.score.risco }}">{{ x.score.risco }}</span><br><span class="mini texto-2 nowrap">{{ x.score.perspectiva }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="estado">Nenhum ativo tem dados além da leitura técnica (analistas/fundamentos) para entrar no Top 10. Ligue a chave Finnhub e/ou Alpha Vantage no .env; enquanto isso, veja a leitura técnica em <a href="{% url 'mercado_oportunidades' %}">Oportunidades</a>.</p>
+{% endif %}

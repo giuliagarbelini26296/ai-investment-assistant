@@ -1,0 +1,8 @@
+{% extends "ui/base.html" %}{% load static %}
+{% block title %}Oportunidades · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "mercado/_abas.html" %}
+<div id="painel-mercado" data-recarregar="{{ request.path }}?tipo={{ tipo }}&risco={{ risco|urlencode }}&perspectiva={{ perspectiva|urlencode }}&fragmento=1" data-intervalo="180">
+  {% include "mercado/_oportunidades.html" %}
+</div>
+{% endblock %}

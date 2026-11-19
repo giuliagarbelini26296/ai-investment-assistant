@@ -1,0 +1,70 @@
+{% extends "ui/base.html" %}
+{% block title %}Ativos · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>Ativos <small class="texto-2">{{ linhas|length }} de {{ total }}</small></h1>
+  <div>
+    {% if comparar_ids|length > 1 %}<a href="{% url 'comparar' %}?{% for i in comparar_ids %}ativos={{ i }}&{% endfor %}">Comparar os filtrados</a> · {% endif %}
+    <a class="botao" href="{% url 'quick_purchase' %}">Registrar compra</a> ·
+    <a href="{% url 'importar_compras' %}">Importar CSV</a> ·
+    <a class="botao" href="{% url 'asset_create' %}">Novo ativo</a>
+  </div>
+</div>
+<form method="get" class="filtros">
+  <input type="search" name="q" value="{{ filtros.q }}" placeholder="símbolo ou nome" aria-label="Buscar">
+  <select name="classe" aria-label="Classe"><option value="">Classe: todas</option>{% for v, n in classes %}<option value="{{ v }}" {% if filtros.classe == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+  <select name="mercado" aria-label="Mercado"><option value="">Mercado: todos</option>{% for v, n in mercados %}<option value="{{ v }}" {% if filtros.mercado == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+  <select name="custodia" aria-label="Custódia"><option value="">Custódia: todas</option>{% for v, n in custodias %}<option value="{{ v }}" {% if filtros.custodia == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+  {% if setores %}<select name="setor" aria-label="Setor"><option value="">Setor: todos</option>{% for s in setores %}<option value="{{ s }}" {% if filtros.setor == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>{% endif %}
+  <select name="situacao" aria-label="Situação"><option value="">Situação: todas</option>{% for v, n in situacoes.items %}<option value="{{ v }}" {% if filtros.situacao == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+  <button type="submit" class="botao">Filtrar</button>
+  {% if filtros %}<a href="{% url 'asset_list' %}">limpar</a>{% endif %}
+  {% if acompanhados %}{% if filtros.ver == "todos" %}<a href="{% url 'asset_list' %}">esconder os {{ acompanhados }} só acompanhados</a>{% else %}<a href="?ver=todos">+ {{ acompanhados }} só acompanhados (Mercado/Favoritos)</a>{% endif %}{% endif %}
+</form>
+{% if linhas %}
+{% totais_tabela linhas as totais_lista %}
+<table class="tabela ordenavel" id="tabela-ativos">
+  <thead>
+    <tr><th data-sort="text">Símbolo</th><th data-sort="text">Nome</th><th data-sort="text">Mercado</th><th data-sort="text">Custódia</th><th data-sort="text">Setor</th>{% if totais_lista %}<th class="num" data-sort="num">Quantidade</th><th class="num" data-sort="num">Preço médio</th>{% endif %}<th class="num" data-sort="num">Preço atual</th><th class="num" data-sort="num">Dia</th>{% if totais_lista %}<th class="num" data-sort="num">Resultado</th><th class="num" data-sort="num">Retorno</th>{% endif %}<th>Atualidade</th></tr>
+  </thead>
+  <tbody>
+  {% for l in linhas %}
+    <tr {% include "portfolio/_dados_totais.html" %}>
+      <td data-value="{{ l.asset.symbol }}"><a href="{% url 'asset_detail' l.asset.pk %}">{{ l.asset.symbol }}</a></td>
+      <td><span class="truncar" title="{{ l.asset.name }}">{{ l.asset.name }}</span></td>
+      <td>{{ l.asset.get_market_display }}</td>
+      <td>{{ l.asset.get_custody_display }}</td>
+      <td>{{ l.asset.sector|default:"—" }}</td>
+      {% if totais_lista %}{% if l.posicao %}
+        <td class="num" data-value="{{ l.posicao.quantidade }}">{{ l.posicao.quantidade|normalize_decimal }}</td>
+        <td class="num" data-value="{{ l.posicao.preco_medio }}">{{ l.posicao.preco_medio|moeda:l.asset.native_currency }}</td>
+      {% else %}
+        <td class="num texto-2" data-value="0">—</td><td class="num texto-2" data-value="0">sem compras</td>
+      {% endif %}{% endif %}
+      {% if l.avaliacao %}
+        <td class="num" data-value="{{ l.avaliacao.preco_atual }}">{{ l.avaliacao.preco_atual|moeda:l.atualidade.cotacao.currency }}</td>
+        <td class="num {% if l.avaliacao.variacao_dia_pct < 0 %}queda{% elif l.avaliacao.variacao_dia_pct %}alta{% endif %}" data-value="{{ l.avaliacao.variacao_dia_pct|default:0 }}">{{ l.avaliacao.variacao_dia_pct|pct }}</td>
+      {% else %}
+        <td class="num texto-2" data-value="0" title="{{ l.motivo_sem_preco }}">indisponível</td><td class="num texto-2" data-value="0">—</td>
+      {% endif %}
+      {% if totais_lista %}{% if l.sem_base_cambial %}
+        <td class="num {% if l.dados_totais.resultado < 0 %}queda{% elif l.dados_totais.resultado > 0 %}alta{% endif %}" data-value="{{ l.dados_totais.resultado|bruto }}">{% if l.dados_totais.resultado is not None %}{{ l.dados_totais.resultado|moeda:l.asset.native_currency }}{% else %}—{% endif %}</td>
+        <td class="num {% if l.dados_totais.resultado < 0 %}queda{% elif l.dados_totais.resultado > 0 %}alta{% endif %}" data-value="{{ l.avaliacao.retorno_pct|bruto }}">{% if l.avaliacao %}{{ l.avaliacao.retorno_pct|pct }}{% else %}—{% endif %}</td>
+      {% elif l.resultado_visao is not None %}
+        <td class="num {% if l.resultado_visao < 0 %}queda{% else %}alta{% endif %}" data-value="{{ l.resultado_visao }}">{{ l.resultado_visao|moeda:moeda }}</td>
+        <td class="num {% if l.retorno_visao < 0 %}queda{% else %}alta{% endif %}" data-value="{{ l.retorno_visao }}">{{ l.retorno_visao|pct }}</td>
+      {% else %}
+        <td class="num texto-2" data-value="0">indisponível</td><td class="num texto-2" data-value="0">—</td>
+      {% endif %}{% endif %}
+      <td>{% if l.atualidade %}<span class="badge badge-{{ l.atualidade.estado }}" title="{{ l.atualidade.descricao }}">{{ l.atualidade.rotulo }}</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  {% if totais_lista %}{% include "portfolio/_rodape_totais.html" with linhas_totais=linhas layout="ativos" %}{% endif %}
+</table>
+{% if totais_lista %}<p class="nota">Totais dos ativos filtrados, separados por moeda quando falta base cambial. Retorno = resultado total ÷ investido das posições com cotação.</p>{% endif %}
+<p class="nota">Clique no cabeçalho para ordenar. Resultado e retorno na moeda selecionada no cabeçalho ({{ moeda }}).</p>
+{% else %}
+<p class="estado">Nenhum ativo corresponde aos filtros.</p>
+{% endif %}
+{% endblock %}

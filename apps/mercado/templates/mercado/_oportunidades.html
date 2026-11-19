@@ -1,0 +1,59 @@
+<nav class="abas" aria-label="Tipo de avaliação">{% for k, rot in tipos_avaliacao %}<a href="?tipo={{ k }}" class="{% if tipo == k %}ativo{% endif %}">{{ rot }}</a>{% endfor %}</nav>
+<p class="nota">Pontuação, cobertura dos dados e risco são informações distintas. Compare ativos da mesma classe e com cobertura semelhante; dado ausente não significa desempenho ruim.</p>
+{% if tipo == "acao" %}<div class="aviso">
+  <strong>Isto não é recomendação de compra.</strong> O score de atratividade (0–100) é uma régua fixa do portal: Técnico até 35 pontos, Analistas até 40, Fundamentos até 25. Critério sem dado vale 0 e o total não é reescalonado — por isso uma queda isolada (só leitura técnica) não passa de 35 pontos e fica fora do Top 10. Clique no score para ver cada critério.
+</div>{% else %}<p class="nota">ETFs e criptomoedas usam apenas os critérios técnicos, com máximo fixo de 35 pontos. A cobertura informa quantos pontos puderam ser avaliados; a pontuação não é uma probabilidade de valorização.</p>{% endif %}
+{% if tipo == "acao" %}<h2>Top 10 de ações — critérios disponíveis</h2>
+{% include "mercado/_tabela_top10.html" %}
+{% if fora_top10 %}<p class="nota">{{ fora_top10 }} ativo(s) ficaram fora do Top 10 por terem só a leitura técnica avaliada (cripto, ETFs ou sem dados de analistas/fundamentos).</p>{% endif %}
+
+{% endif %}<h2>{% if tipo == "acao" %}Ações avaliadas{% else %}Leitura técnica — até 35 pontos{% endif %}</h2>
+<div class="barra-tabela">
+  <div class="filtros-rapidos">
+    <span class="texto-2 mini">Risco:</span>
+    <a class="chip{% if not risco %} ativo{% endif %}" href="?tipo={{ tipo }}&perspectiva={{ perspectiva|urlencode }}">todos</a>
+    {% for r in "baixo,médio,alto"|split %}<a class="chip{% if risco == r %} ativo{% endif %}" href="?tipo={{ tipo }}&risco={{ r|urlencode }}&perspectiva={{ perspectiva|urlencode }}">{{ r }}</a>{% endfor %}
+    <span class="texto-2 mini">Perspectiva:</span>
+    <a class="chip{% if not perspectiva %} ativo{% endif %}" href="?tipo={{ tipo }}&risco={{ risco|urlencode }}">todas</a>
+    {% for r in "curto prazo,médio/longo prazo"|split %}<a class="chip{% if perspectiva == r %} ativo{% endif %}" href="?tipo={{ tipo }}&risco={{ risco|urlencode }}&perspectiva={{ r|urlencode }}">{{ r }}</a>{% endfor %}
+  </div>
+  <input type="search" class="busca-mini" data-busca placeholder="buscar…" aria-label="Buscar ativo">
+</div>
+<div class="rolagem-x">
+<table class="tabela ordenavel" data-busca-alvo>
+  <thead><tr>
+    <th data-sort="txt">Ativo</th><th class="num" data-sort="num">Preço</th><th class="num" data-sort="num">RSI 14</th>
+    <th class="num" data-sort="num">52 semanas<br><span class="mini texto-2">vs. mín. · vs. máx.</span></th><th data-sort="txt">Tendência</th>
+    <th data-sort="txt">Analistas</th><th class="num" data-sort="num">Potencial</th><th data-sort="num">Score</th><th data-sort="txt">Risco<br><span class="mini texto-2">perspectiva</span></th>
+  </tr></thead>
+  <tbody>
+  {% for x in todos %}
+    <tr data-busca="{{ x.asset.symbol|lower }} {{ x.asset.name|lower }}">
+      <td>{% include "mercado/_ativo_celula.html" with sem_nome=1 %}</td>
+      <td class="num" data-value="{{ x.preco|bruto }}">{{ x.preco|preco:x.moeda }}<br>{% include "mercado/_atualidade.html" %}</td>
+      <td class="num" data-value="{{ x.ind.rsi14|bruto }}">{{ x.ind.rsi14|numero:0 }}</td>
+      <td class="num" data-value="{{ x.ind.dist_minima_52s_pct|bruto }}"><span class="alta">{{ x.ind.dist_minima_52s_pct|pct:1 }}</span> · <span class="queda">{{ x.ind.dist_maxima_52s_pct|pct:1 }}</span>{% if not x.ind.janela_52s_completa %}<br><span class="mini texto-2">janela {{ x.ind.janela_52s_dias }} d</span>{% endif %}</td>
+      <td><span class="tendencia tendencia-{{ x.ind.tendencia }}">{{ x.ind.tendencia }}</span></td>
+      <td class="mini nowrap">{% if x.analistas %}{{ x.analistas.consenso }} ({{ x.analistas.total }})<br><span class="texto-2">{{ x.analistas.source }} {{ x.analistas.period|date:"m/y" }}</span>{% else %}<span class="texto-2">—</span>{% endif %}</td>
+      <td class="num {{ x.score.potencial_pct|sinal_classe }}" data-value="{{ x.score.potencial_pct|bruto }}">{% if x.score.potencial_pct is not None %}{{ x.score.potencial_pct|pct:1 }}{% else %}—{% endif %}</td>
+      <td data-value="{% if tipo == 'acao' %}{{ x.score.total }}{% else %}{{ x.score.por_grupo.tecnico.0 }}{% endif %}">{% include "mercado/_score.html" %}</td>
+      <td class="nowrap"><span class="risco risco-{{ x.score.risco }}">{{ x.score.risco }}</span><br><span class="mini texto-2">{{ x.score.perspectiva }}</span></td>
+    </tr>
+  {% empty %}<tr><td colspan="9" class="texto-2">Nenhum ativo com histórico suficiente ainda.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<details class="metodologia">
+  <summary>Como o score é calculado</summary>
+  <ul>
+    <li><strong>T1 Perto da mínima de 52 semanas (12):</strong> 12 pontos com o preço até 5% acima da mínima; 0 a partir de 40%; linear entre os dois. Exige ao menos 6 meses de candles.</li>
+    <li><strong>T2 RSI de 14 sessões (8):</strong> ≤ 30 = 8; ≤ 40 = 5; ≤ 55 = 2; acima = 0.</li>
+    <li><strong>T3 Tendência (15):</strong> preço acima da média de 200 sessões = 8; histograma do MACD (12, 26, 9) positivo = 7, negativo mas subindo = 4.</li>
+    <li><strong>A1 Potencial até o preço-alvo médio (25):</strong> 25 a partir de +30%; 0 se ≤ 0; linear. Preço-alvo é projeção de analistas (horizonte típico de 12 meses).</li>
+    <li><strong>A2 Consenso (15):</strong> 15 com ≥ 85% de recomendações de compra; 0 com ≤ 40%; −5 se ≥ 20% recomendam venda. Exige ao menos 5 analistas.</li>
+    <li><strong>F1 Margem líquida (8):</strong> &gt; 10% = 8; &gt; 0 = 5. <strong>F2 ROE (8):</strong> ≥ 20% = 8; ≥ 10% = 5; &gt; 0 = 2. <strong>F3 P/L (9):</strong> até 20 = 9; até 30 = 6; até 45 = 3.</li>
+    <li><strong>Risco:</strong> volatilidade anualizada de 90 sessões &lt; 25% baixo, &lt; 45% médio, senão alto; sobe um nível com resultado em ≤ 7 dias, tendência de baixa, queda ≥ 15% na semana, ≥ 30% de recomendações de venda ou volatilidade recente acima de 1,5× a de 6 meses.</li>
+    <li><strong>Perspectiva:</strong> "médio/longo prazo" quando analistas/fundamentos pesaram mais; "curto prazo" quando pesaram os sinais técnicos.</li>
+  </ul>
+  <p class="nota">{{ aviso_metodologia }}</p>
+</details>

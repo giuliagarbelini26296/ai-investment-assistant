@@ -1,0 +1,8 @@
+{% extends "ui/base.html" %}{% load static %}
+{% block title %}Altas e quedas · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "mercado/_abas.html" %}
+<div id="painel-mercado" data-recarregar="{{ request.path }}?periodo={{ periodo }}&tipo={{ tipo }}&amp;mercado={{ mercado_filtro }}&amp;fragmento=1" data-intervalo="120">
+  {% include "mercado/_rankings.html" %}
+</div>
+{% endblock %}

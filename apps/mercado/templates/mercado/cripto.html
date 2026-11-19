@@ -1,0 +1,8 @@
+{% extends "ui/base.html" %}
+{% block title %}Criptomoedas · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "mercado/_abas.html" %}
+<div id="painel-mercado" data-recarregar="{{ request.path }}?periodo={{ periodo }}&fragmento=1" data-intervalo="120">
+{% include "mercado/_cripto.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "ui/base.html" %}
+{% block title %}{{ asset.symbol }} · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "portfolio/_conferencia.html" %}
+<div class="cabecalho-pagina">
+  <h1>{% if x %}{% include "mercado/_estrela.html" %}{% endif %}{{ asset.symbol }} <small class="texto-2">{{ asset.name }} · {{ asset.get_market_display }} · {{ asset.get_custody_display }} · {{ asset.native_currency }}</small></h1>
+  <div><a class="botao" href="{% url 'quick_purchase' %}?ativo={{ asset.pk }}">Nova compra</a> <a href="{% url 'regra_nova' %}?ativo={{ asset.pk }}">Criar alerta</a> <a href="{% url 'asset_update' asset.pk %}">Editar ativo</a></div>
+</div>
+<section class="cartoes">
+  <div class="cartao"><span class="rotulo">Quantidade</span><span class="valor">{% if posicao %}{{ posicao.quantidade|normalize_decimal }}{% else %}—{% endif %}</span><span class="nota">{% if asset.position_balance %}saldo conciliado de {{ asset.position_balance.reference_date|date:"d/m/Y" }} · {{ posicao.lotes }} compra(s) posterior(es){% else %}{{ posicao.lotes|default:0 }} compra(s) ativa(s){% endif %}</span></div>
+  <div class="cartao"><span class="rotulo">Preço médio</span><span class="valor">{% if posicao %}{{ posicao.preco_medio|moeda:asset.native_currency }}{% else %}—{% endif %}</span><span class="nota">{% if asset.position_balance %}saldo conciliado + compras posteriores{% else %}ponderado pelos lotes{% endif %}</span></div>
+  <div class="cartao"><span class="rotulo">Investido</span><span class="valor">{% if posicao %}{{ posicao.investido|moeda:asset.native_currency }}{% else %}—{% endif %}</span><span class="nota">sem custos, taxas ou impostos</span></div>
+  <div class="cartao"><span class="rotulo">Preço atual</span><span class="valor">{% if atualidade.cotacao %}{{ atualidade.cotacao.price|moeda:atualidade.cotacao.currency }}{% else %}—{% endif %}</span><span class="nota"><span class="badge badge-{{ atualidade.estado }}">{{ atualidade.rotulo }}</span> {{ atualidade.descricao }}</span></div>
+  <div class="cartao"><span class="rotulo">Resultado</span><span class="valor {% if avaliacao and avaliacao.resultado < 0 %}queda{% elif avaliacao %}alta{% endif %}">{% if avaliacao %}{{ avaliacao.resultado|moeda:asset.native_currency }}{% else %}—{% endif %}</span><span class="nota">{% if avaliacao %}{{ avaliacao.retorno_pct|pct }} desde a compra{% else %}indisponível{% endif %}</span></div>
+</section>
+{% if moeda != asset.native_currency and posicao %}
+<h2>Visão em {{ moeda }}</h2>
+{% if conversao %}
+<section class="decomposicao">
+  <div class="cartao"><span class="rotulo">Investido em {{ moeda }}</span><span class="valor">{{ conversao.investido|moeda:moeda }}</span><span class="nota">câmbio médio das compras USD/BRL {{ conversao.taxa_media_compra|normalize_decimal|slice:":8" }}</span></div>
+  <div class="cartao"><span class="rotulo">Valor atual em {{ moeda }}</span><span class="valor">{{ conversao.valor_atual|moeda:moeda }}</span><span class="nota">câmbio atual USD/BRL {{ conversao.taxa_atual|normalize_decimal }} · {{ cambio.descricao }}</span></div>
+  <div class="cartao"><span class="rotulo">Resultado em {{ moeda }}</span><span class="valor {% if conversao.resultado < 0 %}queda{% else %}alta{% endif %}">{{ conversao.resultado|moeda:moeda }}</span><span class="nota">{{ conversao.retorno_pct|pct }}</span></div>
+  <div class="cartao"><span class="rotulo">Resultado do ativo</span><span class="valor {% if conversao.resultado_ativo < 0 %}queda{% else %}alta{% endif %}">{{ conversao.resultado_ativo|moeda:moeda }}</span><span class="nota">variação do preço em {{ asset.native_currency }}, ao câmbio atual</span></div>
+  <div class="cartao"><span class="rotulo">Efeito cambial</span><span class="valor {% if conversao.efeito_cambial < 0 %}queda{% else %}alta{% endif %}">{{ conversao.efeito_cambial|moeda:moeda }}</span><span class="nota">variação do USD/BRL entre as compras e hoje</span></div>
+</section>
+<p class="nota">Resultado em {{ moeda }} = resultado do ativo + efeito cambial. Câmbio de cada compra: informado pelo usuário ou PTAX da data (ou do dia útil anterior), conforme a coluna "Origem câmbio".</p>
+{% elif sem_base %}
+<div class="aviso">Sem base cambial: ao menos uma compra não tem câmbio informado nem PTAX disponível para a data. A posição aparece apenas em {{ asset.native_currency }} e fica fora dos totais em {{ moeda }}. Informe o câmbio na compra ou carregue o histórico PTAX (<code>manage.py carregar_historico --so-cambio</code>).</div>
+{% elif not cambio %}
+<div class="aviso">Sem cotação de câmbio USD/BRL disponível; a visão em {{ moeda }} está indisponível.</div>
+{% elif not avaliacao %}
+<p class="nota">Sem cotação válida do ativo; a visão em {{ moeda }} fica indisponível.</p>
+{% endif %}
+{% endif %}
+
+<h2>Histórico de preços</h2>
+{% if tem_historico %}
+<div class="barra-grafico">
+  <span>Período:</span>
+  {% for p in periodos %}<button type="button" class="chip {% if p == '1m' %}ativo{% endif %}" data-periodo-botao="{{ p }}">{% if p == 'compra' %}desde a compra{% else %}{{ p|upper }}{% endif %}</button>{% endfor %}
+  {% if moeda != asset.native_currency %}<span class="sep">·</span><button type="button" class="chip ativo" data-serie-botao="nativo">{{ asset.native_currency }}</button><button type="button" class="chip" data-serie-botao="convertido">{{ moeda }} (PTAX por data)</button>{% endif %}
+</div>
+<div class="grafico grafico-clicavel"><canvas id="grafico-historico" data-url="{% url 'historico_json' asset.pk %}" data-periodo="1m" data-moeda-nativa="{{ asset.native_currency }}" height="110"></canvas></div>
+<script type="application/json" id="linhas-grafico">{{ linhas_grafico|safe_json }}</script>
+<p class="nota" id="grafico-nota">Carregando…</p>
+<form class="alerta-rapido" id="alerta-rapido" method="get" action="{% url 'regra_nova' %}" hidden>
+  <input type="hidden" name="ativo" value="{{ asset.pk }}">
+  <input type="hidden" name="currency" value="{{ asset.native_currency }}">
+  <span>Avisar quando {{ asset.symbol }} ficar</span>
+  <select name="tipo"><option value="abaixo">abaixo de</option><option value="acima">acima de</option></select>
+  <span class="prefixo">{% if asset.native_currency == "BRL" %}R${% else %}US${% endif %}</span>
+  <input type="text" name="valor" inputmode="decimal" size="10" aria-label="preço">
+  <button type="submit" class="botao">Criar alerta</button>
+  <button type="button" class="chip" id="alerta-rapido-fechar">fechar</button>
+</form>
+<p class="nota">Clique num ponto do gráfico para criar um alerta de preço naquele nível. Linhas: preço médio e limites dos seus alertas de preço.</p>
+{% else %}
+<p class="nota">Sem histórico carregado para este ativo. Rode <code>manage.py carregar_historico --simbolo {{ asset.symbol }} --dias 365</code> (respeita a cota da fonte).</p>
+{% endif %}
+
+<h2>Compras</h2>
+{% if lotes %}
+<table class="tabela">
+  <thead><tr><th>Data</th><th class="num">Quantidade</th><th class="num">Preço unitário</th><th class="num">Investido</th>{% if asset.native_currency != "BRL" %}<th>Câmbio compra</th><th>Origem câmbio</th>{% endif %}<th>Rev.</th><th>Observação</th><th></th></tr></thead>
+  <tbody>
+  {% for lot in lotes %}
+    <tr class="{% if lot.is_cancelled %}cancelado{% endif %}">
+      <td>{{ lot.trade_date|date:"d/m/Y" }}</td>
+      <td class="num">{{ lot.quantity|normalize_decimal }}</td>
+      <td class="num">{{ lot.unit_price|moeda:asset.native_currency }}</td>
+      <td class="num">{{ lot.invested|moeda:asset.native_currency }}</td>
+      {% if asset.native_currency != "BRL" %}
+      <td>{% if lot.fx_resolved %}{{ lot.fx_resolved|normalize_decimal }}{% else %}—{% endif %}</td>
+      <td>{{ lot.get_fx_origin_display }}</td>
+      {% endif %}
+      <td title="{{ lot.revisions.count }} revisão(ões) anteriores">{{ lot.revision }}</td>
+      <td>{{ lot.notes }}{% if lot.is_cancelled %} <em>cancelada em {{ lot.cancelado_em|date:"d/m/Y H:i" }}</em>{% endif %}</td>
+      <td class="acoes-linha">
+        {% if not lot.is_cancelled %}
+          <a href="{% url 'lot_update' lot.pk %}">editar</a>
+          <form method="post" action="{% url 'lot_cancel' lot.pk %}" onsubmit="return confirm('Cancelar esta compra? Ela sai do cálculo, mas fica no histórico.');">{% csrf_token %}<button type="submit" class="link">cancelar</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="estado">Nenhuma compra registrada.</p>
+{% endif %}
+{% if x %}{% include "mercado/_leitura_ativo.html" %}{% endif %}
+{% endblock %}

@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {calculatePurchase} from './purchaseMath.js';
+const position={quantity:'300',costBasis:'15220.71'};
+const inputs={quantity:'100',price:'56,35',fees:'0',saleFees:'0',budget:'',target:''};
+test('preserves exact cost instead of rounded average',()=>{const r=calculatePurchase(position,inputs);assert.equal(r.purchase,'5635');assert.equal(r.newCost,'20855.71');assert.equal(r.newQuantity,'400');assert.equal(r.average,'52.139275');});
+test('new asset includes purchase fees',()=>{const r=calculatePurchase(null,{...inputs,quantity:'10',price:'120.85',fees:'2'});assert.equal(r.average,'121.05');});
+test('B3 refuses fractional units',()=>{assert.equal(calculatePurchase(position,{...inputs,quantity:'1,5'}).ok,false);});
+test('US fractional units and budget rounded down',()=>{const r=calculatePurchase(null,{...inputs,quantity:'0.5',price:'200',budget:'102',fees:'2'},'NYSE');assert.equal(r.newQuantity,'0.5');assert.equal(r.average,'204');assert.equal(r.maxQuantity,'0.5');});
+test('budget deducts fees and limits whole B3 units',()=>{const r=calculatePurchase(null,{...inputs,budget:'1000',fees:'10'});assert.equal(r.maxQuantity,'17');});
+test('target result includes purchase and sale fees',()=>{const r=calculatePurchase(null,{...inputs,quantity:'10',price:'100',fees:'5',saleFees:'3',target:'110'});assert.equal(r.future.gain,'92');assert.equal(r.breakEven,'100.8');});
+test('missing cost is never silently treated as zero',()=>{assert.equal(calculatePurchase({quantity:10,costBasis:null},inputs).ok,false);});
+test('rejects invalid quantity and preserves position',()=>{const before=JSON.stringify(position);for(const q of ['0','-1','Infinity','1.000,5'])assert.equal(calculatePurchase(position,{...inputs,quantity:q}).ok,false);assert.equal(JSON.stringify(position),before);});

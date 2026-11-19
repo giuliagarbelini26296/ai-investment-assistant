@@ -1,0 +1,223 @@
+{% load formatos %}
+{% with p=painel %}
+<section class="resumo-exec" aria-labelledby="titulo-resumo">
+  <header class="resumo-exec__topo">
+    <h2 id="titulo-resumo">Resumo executivo</h2>
+    <ul class="cobertura">
+      <li><strong>{{ p.cobertura.ativos }}</strong> ativos</li>
+      <li><strong>{{ p.cobertura.com_historico }}</strong> com histórico</li>
+      <li><strong>{{ p.cobertura.com_analistas }}</strong> com analistas</li>
+      <li class="{% if not p.cobertura.com_alvo %}texto-2{% endif %}"><strong>{{ p.cobertura.com_alvo }}</strong> com preço-alvo</li>
+    </ul>
+  </header>
+
+  {% if p.referencias %}
+  <div class="referencias" aria-label="Origem e horário das cotações">
+    {% for r in p.referencias %}
+    <div class="ref" title="Atraso declarado: {{ r.atraso|default:'não informado' }}">
+      <span class="ref-mercado">{{ r.mercado }}</span>
+      <span class="ref-sit">{{ r.situacao }}</span>
+      <span class="ref-fonte">{{ r.fonte }} · cotação mais recente {{ r.horario|date:"d/m H:i" }}</span>
+      <span class="ref-atraso">{{ r.atraso }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="resumo-grade">
+    <div class="coluna">
+    {# ---------------- FATOS ---------------- #}
+    <article class="bloco">
+      <header class="bloco-cab"><span class="rotulo-tipo tipo-fato">Fato</span><h3>O que os dados mostram</h3></header>
+      <p class="bloco-fonte">Cotações e candles das fontes acima. Variação do dia = último preço ÷ fechamento anterior.</p>
+
+      {% if p.com_variacao %}
+      <div class="sub">
+        <div class="sub-titulo">Amplitude das referências disponíveis <span>{{ p.com_variacao }} ativos com variação</span><a href="{% url 'mercado_rankings' %}">ranking completo →</a></div>
+        <div class="amplitude" role="img" aria-label="{{ p.altas }} em alta, {{ p.quedas }} em queda, {{ p.estaveis }} estáveis">
+          <span class="amp-alta" style="width: {{ p.pct_altas|stringformat:'.1f' }}%"></span>
+          <span class="amp-queda" style="width: {{ p.pct_quedas|stringformat:'.1f' }}%"></span>
+        </div>
+        <div class="amp-legenda"><span class="alta"><strong>{{ p.altas }}</strong> em alta</span><span class="queda"><strong>{{ p.quedas }}</strong> em queda</span>{% if p.estaveis %}<span class="texto-2"><strong>{{ p.estaveis }}</strong> estáveis</span>{% endif %}</div>
+      </div>
+
+      <div class="sub sub-2col">
+        <div>
+          <div class="sub-titulo">Maiores altas</div>
+          <table class="tab-resumo"><tbody>
+            {% for li in p.maiores_altas %}<tr><td>{% include "mercado/_tk.html" with x=li.x %}<br><small class="texto-2">{{ li.x.day_reference_label }} · {{ li.x.fonte_preco }} · coleta {{ li.x.cotado_em|date:"d/m H:i" }}</small></td><td class="num alta"><strong>{{ li.valor|pct:1 }}</strong></td><td class="num texto-2">{{ li.x.preco|preco:li.x.moeda }}</td></tr>{% empty %}<tr><td class="texto-2">nenhuma alta</td></tr>{% endfor %}
+          </tbody></table>
+        </div>
+        <div>
+          <div class="sub-titulo">Maiores quedas</div>
+          <table class="tab-resumo"><tbody>
+            {% for li in p.maiores_quedas %}<tr><td>{% include "mercado/_tk.html" with x=li.x %}<br><small class="texto-2">{{ li.x.day_reference_label }} · {{ li.x.fonte_preco }} · coleta {{ li.x.cotado_em|date:"d/m H:i" }}</small></td><td class="num queda"><strong>{{ li.valor|pct:1 }}</strong></td><td class="num texto-2">{{ li.x.preco|preco:li.x.moeda }}</td></tr>{% empty %}<tr><td class="texto-2">nenhuma queda</td></tr>{% endfor %}
+          </tbody></table>
+        </div>
+      </div>
+      {% else %}
+      <p class="texto-2">Sem variação do dia ainda — o coletor está carregando as cotações.</p>
+      {% endif %}
+
+      {% if p.perto_minima %}
+      <div class="sub">
+        <div class="sub-titulo">Perto da mínima de 52 semanas <span>até 10% acima</span></div>
+        <table class="tab-resumo"><thead><tr><th>Ativo</th><th class="num">Preço</th><th class="num">Mínima 52 sem.</th><th class="num">Acima da mínima</th></tr></thead><tbody>
+          {% for li in p.perto_minima %}<tr><td>{% include "mercado/_tk.html" with x=li.x %}</td><td class="num">{{ li.x.preco|preco:li.x.moeda }}</td><td class="num texto-2">{{ li.x.ind.minima_52s|preco:li.x.moeda }}</td><td class="num"><strong>{{ li.valor|numero:1 }}%</strong></td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+      {% endif %}
+
+      {% if p.setores_fortes %}
+      <div class="sub">
+        <div class="sub-titulo">Setores em 1 mês <span>média simples dos ativos do universo, pelo setor do cadastro</span></div>
+        <table class="tab-resumo"><tbody>
+          {% for s in p.setores_fortes %}<tr><td><strong>{{ s.nome }}</strong> <span class="mini texto-2">{{ s.membros|slice:":4"|join:", " }}{% if s.membros|length > 4 %} +{{ s.membros|length|add:"-4" }}{% endif %}</span></td><td class="num {{ s.media|sinal_classe }}"><strong>{{ s.media|pct:1 }}</strong></td></tr>{% endfor %}
+          {% if p.setores_fracos %}<tr class="separador"><td colspan="2"></td></tr>{% endif %}
+          {% for s in p.setores_fracos %}<tr><td><strong>{{ s.nome }}</strong> <span class="mini texto-2">{{ s.membros|slice:":4"|join:", " }}{% if s.membros|length > 4 %} +{{ s.membros|length|add:"-4" }}{% endif %}</span></td><td class="num {{ s.media|sinal_classe }}"><strong>{{ s.media|pct:1 }}</strong></td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+      {% endif %}
+
+      {% if p.tendencia_alta %}
+      <div class="sub">
+        <div class="sub-titulo">Tendência de alta <span>preço acima da média de 50 e esta acima da de 200 sessões</span></div>
+        <div class="chips">{% for li in p.tendencia_alta %}<a class="chip" href="{% url 'asset_detail' li.x.asset.pk %}" title="{{ li.x.asset.name }}: {{ li.valor|pct:1 }} {{ li.detalhe }}">{{ li.x.asset.symbol }} <span class="alta">{{ li.valor|pct:0 }}</span></a>{% endfor %}</div>
+        <div class="mini texto-2">% = distância do preço até a média de 200 sessões</div>
+      </div>
+      {% endif %}
+
+      {% if p.atipicos %}
+      <div class="sub sub-alerta">
+        <div class="sub-titulo">Conferir o dado <span>variações fora do padrão para ação/ETF</span></div>
+        <table class="tab-resumo"><tbody>
+          {% for li in p.atipicos|slice:":5" %}<tr><td>{% include "mercado/_tk.html" with x=li.x %}</td><td class="num {{ li.valor|sinal_classe }}"><strong>{{ li.valor|pct:1 }}</strong></td><td class="mini texto-2">{{ li.detalhe }} · fonte {{ li.x.fonte_barras|default:li.x.fonte_preco }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% if p.atipicos|length > 5 %}<details class="mini"><summary>mais {{ p.atipicos|length|add:"-5" }}</summary><div class="chips">{% for li in p.atipicos|slice:"5:" %}<a class="chip" href="{% url 'asset_detail' li.x.asset.pk %}" title="{{ li.detalhe }}">{{ li.x.asset.symbol }} <span class="{{ li.valor|sinal_classe }}">{{ li.valor|pct:0 }}</span></a>{% endfor %}</div></details>{% endif %}
+        <div class="mini texto-2">Pode ser evento real, desdobramento, grupamento, bonificação ou falha da fonte. O portal não corrige o dado: confira no detalhe do ativo antes de usar.</div>
+      </div>
+      {% endif %}
+    </article>
+
+    {# ---------------- RISCOS ---------------- #}
+    <article class="bloco">
+      <header class="bloco-cab"><span class="rotulo-tipo tipo-risco">Risco</span><h3>O que pode impedir a valorização</h3></header>
+      <p class="bloco-fonte">Regras fixas do portal sobre os candles. Tendência de baixa = preço abaixo da média de 50 sessões e esta abaixo da de 200. Risco alto = volatilidade anualizada de 90 sessões de 45% ou mais, ou de 25% a 45% com um sinal de alerta.</p>
+
+      {% if p.tendencia_baixa %}
+      <div class="sub">
+        <div class="sub-titulo">Tendência de baixa <span>{{ p.tendencia_baixa|length }} ativos · % até a média de 200 sessões</span></div>
+        <div class="chips">{% for li in p.tendencia_baixa %}<a class="chip" href="{% url 'asset_detail' li.x.asset.pk %}" title="{{ li.x.asset.name }}: {{ li.valor|pct:1 }} {{ li.detalhe }}">{{ li.x.asset.symbol }} <span class="queda">{{ li.valor|pct:0 }}</span></a>{% endfor %}</div>
+      </div>
+      {% endif %}
+
+      {% if p.risco_alto %}
+      <div class="sub">
+        <div class="sub-titulo">Risco alto pela régua do portal <span>{{ p.risco_alto|length }} ativos</span></div>
+        <table class="tab-resumo"><thead><tr><th>Ativo</th><th class="num">Volatilidade 90 sessões</th><th>Sinal adicional</th></tr></thead><tbody>
+          {% for li in p.risco_alto|slice:":6" %}<tr><td>{% include "mercado/_tk.html" with x=li.x %}</td><td class="num">{% if li.valor is not None %}{{ li.valor|numero:0 }}% a.a.{% else %}—{% endif %}</td><td class="mini texto-2">{{ li.detalhe|default:"—" }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% if p.risco_alto|length > 6 %}
+        <details class="mini"><summary>mais {{ p.risco_alto|length|add:"-6" }}</summary>
+          <div class="chips">{% for li in p.risco_alto|slice:"6:" %}<a class="chip" href="{% url 'asset_detail' li.x.asset.pk %}">{{ li.x.asset.symbol }}{% if li.valor is not None %} <span class="texto-2">{{ li.valor|numero:0 }}%</span>{% endif %}</a>{% endfor %}</div>
+        </details>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="sub">
+        <div class="sub-titulo">Resultados trimestrais nos próximos 14 dias <span>calendário e estimativas da Finnhub</span></div>
+        {% if p.eventos %}
+        <table class="tab-resumo"><thead><tr><th>Data</th><th>Ativo</th><th>Quando</th><th class="num">Lucro/ação estimado</th></tr></thead><tbody>
+          {% for e, x in p.eventos %}<tr><td class="nowrap">{{ e.date|date:"d/m" }} <span class="mini texto-2">{{ e.date|date:"D" }}</span></td><td>{% if x %}{% include "mercado/_tk.html" with x=x %}{% else %}{{ e.asset.symbol }}{% endif %}</td><td class="mini texto-2">{{ e.horario_rotulo|default:"horário não informado" }}</td><td class="num">{% if e.eps_estimate is not None %}US$ {{ e.eps_estimate|numero:2 }}{% else %}—{% endif %}</td></tr>{% endfor %}
+        </tbody></table>
+        <div class="mini texto-2">Divulgação de resultado costuma aumentar a oscilação do preço nos dias próximos.</div>
+        {% else %}
+        <p class="mini texto-2">Nenhum resultado previsto nos próximos 14 dias para os ativos acompanhados.</p>
+        {% endif %}
+      </div>
+    </article>
+    </div>
+    <div class="coluna">
+    {# ---------------- CONSENSO ---------------- #}
+    <article class="bloco">
+      <header class="bloco-cab"><span class="rotulo-tipo tipo-consenso">Consenso</span><h3>O que dizem os analistas</h3></header>
+      {% if p.consenso_top or p.consenso_seus %}
+      <p class="bloco-fonte">Finnhub · contagem mensal de recomendações de analistas de mercado (pesquisa de {{ p.analistas_periodo|date:"M/Y"|lower }}, coletada {{ p.analistas_coleta|date:"d/m H:i" }}). Nessa consulta a fonte informa só os totais por recomendação, sem o nome das instituições.</p>
+      <div class="legenda-analistas mini"><span><i class="seg compra-forte"></i>compra forte</span><span><i class="seg compra"></i>compra</span><span><i class="seg manter"></i>manter</span><span><i class="seg venda"></i>venda</span><span><i class="seg venda-forte"></i>venda forte</span></div>
+      {% if p.consenso_top %}
+      <div class="sub">
+        <div class="sub-titulo">Maior proporção de compra <span>ativos com 5 ou mais analistas</span></div>
+        {% include "mercado/_tabela_consenso.html" with linhas=p.consenso_top %}
+      </div>
+      {% endif %}
+      {% if p.consenso_seus %}
+      <div class="sub">
+        <div class="sub-titulo">Na sua carteira e favoritos</div>
+        {% include "mercado/_tabela_consenso.html" with linhas=p.consenso_seus %}
+      </div>
+      {% endif %}
+      {% else %}
+      <p class="texto-2">Sem recomendações coletadas ainda (Finnhub). {% for f in fontes_inteligencia %}{% if f.codigo == "finnhub" and f.estado == "sem_chave" %}Falta FINNHUB_API_KEY no .env.{% endif %}{% endfor %}</p>
+      {% endif %}
+
+      <div class="sub">
+        <div class="sub-titulo">Mudanças por instituição <span>últimos 30 dias</span></div>
+        {% if p.mudancas %}
+        <table class="tab-resumo"><thead><tr><th>Data</th><th>Ativo</th><th>Instituição</th><th>Recomendação</th></tr></thead><tbody>
+          {% for m in p.mudancas %}<tr><td class="texto-2 nowrap">{{ m.date|date:"d/m" }}</td><td><a class="simbolo" href="{% url 'asset_detail' m.asset.pk %}">{{ m.asset.symbol }}</a></td><td>{{ m.firm }}</td><td><span class="mini texto-2">{{ m.acao_rotulo }}</span> {% if m.from_grade and m.from_grade != m.to_grade %}{{ m.from_grade }} → {% endif %}<strong>{{ m.to_grade|default:"—" }}</strong></td></tr>{% endfor %}
+        </tbody></table>
+        <div class="mini texto-2">Finnhub (upgrades/downgrades). Opinião de cada instituição, não recomendação do portal.</div>
+        {% elif p.mudancas_estado == "sem_acesso" %}
+        <p class="mini texto-2">Indisponível: a Finnhub recusou essa consulta no plano gratuito (endpoint pago). O portal tenta de novo em 7 dias.</p>
+        {% elif p.mudancas_estado == "ok" %}
+        <p class="mini texto-2">Nenhuma mudança de recomendação registrada nos últimos 30 dias para os ativos do universo.</p>
+        {% else %}
+        <p class="mini texto-2">Aguardando a primeira consulta à Finnhub (o portal testa se o plano gratuito libera os nomes das instituições).</p>
+        {% endif %}
+      </div>
+    </article>
+
+    {# ---------------- PROJEÇÕES ---------------- #}
+    <article class="bloco">
+      <header class="bloco-cab"><span class="rotulo-tipo tipo-projecao">Projeção</span><h3>Projeções de terceiros</h3></header>
+      <p class="bloco-fonte">Expectativas de mercado — opinião de terceiros, não certeza.</p>
+
+      <div class="sub">
+        <div class="sub-titulo">Preço-alvo dos analistas</div>
+        {% if p.alvos %}
+        <table class="tab-resumo"><thead><tr><th>Ativo</th><th class="num">Preço</th><th class="num">Alvo médio</th><th class="num">Distância</th></tr></thead><tbody>
+          {% for li in p.alvos %}<tr><td>{% include "mercado/_tk.html" with x=li.x %}</td><td class="num">{{ li.x.preco|preco:li.x.moeda }}</td><td class="num">{{ li.x.preco_alvo.mean|preco:li.x.moeda }}</td><td class="num {{ li.valor|sinal_classe }}"><strong>{{ li.valor|pct:1 }}</strong></td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}
+        <p class="mini texto-2">Sem preço-alvo nas fontes ligadas: Twelve Data (só no plano Ultra), Finnhub (endpoint pago) e Alpha Vantage (ficha da empresa paga desde 02/11/2026). Por isso o critério "potencial até o preço-alvo" do score fica sem avaliação.</p>
+        {% endif %}
+      </div>
+
+      <div class="sub">
+        <div class="sub-titulo">Boletim Focus — Banco Central {% if p.focus_data %}<span>pesquisa de {{ p.focus_data|date:"d/m/Y" }}</span>{% endif %}</div>
+        {% if p.focus %}
+        <table class="tab-resumo"><thead><tr><th>Indicador</th>{% for ano, f in p.focus.0.anos %}<th class="num">{{ ano }}</th>{% endfor %}</tr></thead><tbody>
+          {% for linha in p.focus %}<tr><td>{{ linha.rotulo }}</td>{% for ano, f in linha.anos %}<td class="num">{% if f %}<strong>{% if linha.unidade == "R$" %}R$ {{ f.mediana|numero:2 }}{% else %}{{ f.mediana|numero:2 }}{{ linha.unidade|slice:":1" }}{% endif %}</strong>{% if f.minimo is not None and f.maximo is not None or f.respondentes %}<br><span class="mini texto-2" title="menor – maior projeção">{% if f.minimo is not None and f.maximo is not None %}{{ f.minimo|numero:2 }}–{{ f.maximo|numero:2 }}{% endif %}{% if f.respondentes %} · {{ f.respondentes }} inst.{% endif %}</span>{% endif %}{% else %}—{% endif %}</td>{% endfor %}</tr>{% endfor %}
+        </tbody></table>
+        <div class="mini texto-2">Mediana das instituições que responderam à pesquisa (faixa = menor e maior projeção). Selic em % a.a. no fim do ano; IPCA = inflação acumulada no ano.</div>
+        {% elif p.focus_estado.estado == "falha" %}
+        <p class="mini queda">Não foi possível atualizar o Focus ({{ p.focus_estado.quando|date:"d/m H:i" }}). <a href="{% url 'sobre_dados' %}">Ver situação dos dados</a></p>
+        {% else %}
+        <p class="mini texto-2">Ainda não coletado — o portal consulta o Focus uma vez por dia, a partir das 9h.</p>
+        {% endif %}
+      </div>
+
+      {% if p.macro %}
+      <div class="sub">
+        <div class="sub-titulo">Referência oficial atual <span>SGS/BCB (fato, para comparar com as projeções)</span></div>
+        <div class="chips">{% for m in p.macro %}<span class="chip chip-neutro">{{ m.nome }} <strong>{{ m.valor|numero:2 }}%</strong> <span class="mini texto-2">{{ m.data|date:"d/m/Y" }}</span></span>{% endfor %}</div>
+      </div>
+      {% endif %}
+    </article>
+
+    </div>
+  </div>
+  <p class="nota">Fato = dado observado na fonte · Consenso = opinião agregada de analistas · Projeção = expectativa de terceiros. {{ aviso_metodologia }}</p>
+</section>
+{% endwith %}

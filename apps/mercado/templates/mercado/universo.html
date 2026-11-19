@@ -1,0 +1,33 @@
+{% extends "ui/base.html" %}{% load static %}
+{% block title %}Universo · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "mercado/_abas.html" %}
+<p class="nota">O Mercado avalia todos os ativos abaixo: os da carteira, os favoritos e a lista "só acompanhamento". Ações dos EUA só acompanhadas recebem preço por rodízio de ~1 h (o plano gratuito da Twelve Data permite 8 chamadas/min e 800/dia; a carteira tem prioridade). Cripto vem da Binance pública.</p>
+<form method="post" action="{% url 'mercado_universo_adicionar' %}" class="filtros">
+  {% csrf_token %}
+  <input name="simbolo" placeholder="ticker" required maxlength="20" aria-label="Ticker">
+  <select name="mercado" aria-label="Mercado">{% for m, n in mercados %}<option value="{{ m }}">{{ n }}</option>{% endfor %}</select>
+  <input name="nome" placeholder="nome (opcional)" maxlength="120" aria-label="Nome">
+  <input name="setor" placeholder="setor (opcional)" maxlength="80" aria-label="Setor">
+  <label class="mini"><input type="checkbox" name="etf" value="1"> é ETF</label>
+  <button class="botao" type="submit">Incluir no universo</button>
+</form>
+<form method="post" action="{% url 'mercado_semear' %}" class="mini">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="link" type="submit">recarregar a lista sugerida (só cria o que falta)</button></form>
+<div class="rolagem-x">
+<table class="tabela ordenavel">
+  <thead><tr><th data-sort="txt">Ativo</th><th data-sort="txt">Tipo</th><th data-sort="txt">Setor</th><th data-sort="txt">Situação</th><th data-sort="txt">Histórico</th><th></th></tr></thead>
+  <tbody>
+  {% for a, e in ativos %}
+    <tr>
+      <td>{% include "mercado/_estrela.html" with asset=a %} <a href="{% url 'asset_detail' a.pk %}"><strong>{{ a.symbol }}</strong></a> <span class="mini texto-2">{{ a.name }}</span></td>
+      <td>{{ a.tipo_rotulo }} · {{ a.get_market_display }}</td>
+      <td class="mini">{{ a.sector|default:"—" }}</td>
+      <td class="mini">{% if a.acompanhamento %}só acompanhamento{% else %}carteira/cadastro{% endif %}</td>
+      <td class="mini">{% if e and e.last_success_at %}candles {{ e.last_success_at|date:"d/m H:i" }}{% elif e and e.last_error %}<span class="queda" title="{{ e.last_error }}">falha: {{ e.last_error|truncatechars:60 }}</span>{% else %}<span class="texto-2">aguardando carga</span>{% endif %}</td>
+      <td>{% if a.acompanhamento %}<form method="post" action="{% url 'mercado_universo_remover' a.pk %}">{% csrf_token %}<button class="link" type="submit">remover</button></form>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

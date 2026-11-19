@@ -1,0 +1,1 @@
+<li class="item-{{ i.tipo }}"><span class="rotulo-tipo tipo-{{ i.tipo }}">{{ i.rotulo }}</span> {{ i.texto }}{% if i.fonte or i.quando %} <span class="mini texto-2">({% if i.fonte %}{{ i.fonte }}{% endif %}{% if i.fonte and i.quando %}, {% endif %}{% if i.quando %}{{ i.quando|date:"d/m/Y" }}{% endif %})</span>{% endif %}</li>

@@ -1,0 +1,24 @@
+{% extends 'ui/base.html' %}{% load static %}
+{% block title %}Registrar compra · {{ managed_portfolio.name }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'portal_resources/purchase.css' %}">
+<div class="cabecalho-pagina"><div><div class="purchase-eyebrow">CARTEIRA {{ managed_portfolio.name|upper }}</div><h1>Registrar compra · {{ managed_portfolio.name }}</h1><p class="nota">Este registro altera somente a carteira {{ managed_portfolio.name }}. A carteira Ana permanece separada.</p></div></div>
+<div class="purchase-info">Informe a <strong>quantidade da nova compra</strong> e o <strong>preço executado</strong>. O portal calcula o novo preço médio. Este formulário não envia ordens à corretora.</div>
+{% if form.errors %}<div class="purchase-errors" role="alert">{{ form.non_field_errors }}{% for field in form %}{{ field.errors }}{% endfor %}</div>{% endif %}
+{% if preview %}
+<section class="purchase-review"><div class="purchase-step">2 · CONFERIR NA CARTEIRA {{ managed_portfolio.name|upper }}</div><h2>Confira sua compra de {{ preview.symbol }}</h2><p>{{ preview.currency }} · {{ preview.purchase.date|date:'d/m/Y' }}</p>
+<div class="purchase-summary" id="purchase-review-summary">
+<section><span>Antes da compra</span><strong>{{ preview.before.quantity|normalize_decimal }} unidades</strong><p>Preço médio <b>{{ preview.before.averagePrice|moeda:preview.currency }}</b></p><p>Investido <b>{{ preview.before.cost|moeda:preview.currency }}</b></p></section>
+<section><span>Nova compra</span><strong>{{ preview.purchase.quantity|normalize_decimal }} unidades</strong><p>Preço pago <b>{{ preview.purchase.unitPrice|moeda:preview.currency }}</b></p><p>Total <b>{{ preview.purchase.total|moeda:preview.currency }}</b></p></section>
+<section class="purchase-result"><span>Depois da compra</span><strong>{{ preview.after.quantity|normalize_decimal }} unidades</strong><p>Novo preço médio <b>{{ preview.after.averagePrice|moeda:preview.currency }}</b></p><p>Investido <b>{{ preview.after.cost|moeda:preview.currency }}</b></p></section>
+</div><form method="post" id="purchase-confirm-form">{% csrf_token %}{% for field in form %}<input type="hidden" name="{{ field.name }}" value="{{ field.value|default_if_none:'' }}">{% endfor %}<input type="hidden" name="review_signature" value="{{ review_signature }}">
+<label class="purchase-ack"><input type="checkbox" name="not_included" value="yes" required> Confirmo que esta compra ainda não está incluída na posição da Bruno.</label>
+<div class="acoes"><button class="botao" type="submit" name="action" value="confirm" id="confirm-purchase">Confirmar na carteira {{ managed_portfolio.name }}</button><button class="chip" type="submit" name="action" value="edit" formnovalidate>Corrigir dados</button><a href="/?carteira={{ managed_portfolio.slug }}#/carteira">Cancelar</a></div></form></section>
+{% else %}
+<div class="purchase-grid"><form method="post" class="formulario purchase-entry" id="quick-purchase-form" data-preview-url="{% url 'managed_purchase_preview' managed_portfolio.slug %}">{% csrf_token %}{{ form.submission_key }}<div class="purchase-step">1 · INFORMAR A COMPRA</div>
+{% for field in form.visible_fields %}<div class="campo">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+<div class="acoes"><button class="botao" name="action" value="review" type="submit">Conferir compra</button><a href="/?carteira={{ managed_portfolio.slug }}#/carteira">Cancelar</a></div><p class="nota">Nada será registrado até sua confirmação.</p></form>
+<aside class="purchase-live" aria-label="Cálculo automático"><div class="purchase-step">PREÇO MÉDIO AUTOMÁTICO</div><h2>Veja como sua posição vai ficar</h2><div id="purchase-live" aria-live="polite"><p class="nota">Escolha o ativo e preencha quantidade, moeda e preço pago.</p></div><p class="purchase-formula">Novo preço médio = (investido atual + nova compra) ÷ quantidade total.</p></aside></div>
+{% endif %}<p class="nota">Valores e histórico da Bruno ficam separados dos de Ana. Taxas, impostos e proventos não entram neste cálculo.</p>
+<script src="{% static 'portal_resources/purchase.js' %}" defer></script>
+{% endblock %}

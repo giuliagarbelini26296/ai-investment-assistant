@@ -1,0 +1,9 @@
+{% load formatos %}<table class="tab-resumo tab-consenso"><thead><tr><th>Ativo</th><th>Distribuição</th><th class="num">Compra</th><th class="num">Analistas</th><th class="num" title="variação da proporção de compra contra o mês anterior">vs. mês ant.</th></tr></thead><tbody>
+{% for c in linhas %}<tr>
+  <td>{% include "mercado/_tk.html" with x=c.x %}</td>
+  <td><div class="dist" role="img" aria-label="{% for cl, n, w in c.barras %}{{ n }} {{ cl }}{% if not forloop.last %}, {% endif %}{% endfor %}">{% for cl, n, w in c.barras %}<span class="seg {{ cl }}" style="width: {{ w|stringformat:'.1f' }}%" title="{{ n }} {{ cl|cut:'-'|capfirst }}">{% if w >= 14 %}{{ n }}{% endif %}</span>{% endfor %}</div></td>
+  <td class="num"><strong>{{ c.pct_compra|numero:0 }}%</strong></td>
+  <td class="num">{{ c.total }}</td>
+  <td class="num {% if c.delta_pp %}{{ c.delta_pp|sinal_classe }}{% else %}texto-2{% endif %}">{% if c.delta_pp is not None %}{% if c.delta_pp > 0 %}+{% endif %}{{ c.delta_pp|numero:0 }} p.p.{% else %}—{% endif %}</td>
+</tr>{% endfor %}
+</tbody></table>

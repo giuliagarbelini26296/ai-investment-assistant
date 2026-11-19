@@ -1,0 +1,71 @@
+{% load static %}
+<section class="secao-leitura">
+  <h2>Leitura de mercado <span class="mini texto-2">— regras fixas do portal, com fonte e data de cada dado</span></h2>
+  {% if x.ind %}{% with i=x.ind %}
+  <div class="cartoes">
+    <div class="cartao"><span class="rotulo">Pontuação e cobertura</span>{% include "mercado/_score.html" %}<p class="nota">Risco {{ x.score.risco|default:"não avaliado" }} · {{ x.score.perspectiva }}</p></div>
+    <div class="cartao"><span class="rotulo">{% if i.janela_52s_completa %}52 semanas{% else %}Histórico de {{ i.janela_52s_dias }} dias{% endif %}</span><span class="valor">{{ i.minima_52s|numero:2 }} – {{ i.maxima_52s|numero:2 }}</span><span class="nota">{{ i.dist_minima_52s_pct|pct:1 }} da mínima · {{ i.dist_maxima_52s_pct|pct:1 }} da máxima{% if not i.janela_52s_completa %} · janela de {{ i.janela_52s_dias }} dias{% endif %}</span></div>
+    <div class="cartao"><span class="rotulo">Tendência</span><span class="valor tendencia-{{ i.tendencia }}">{{ i.tendencia }}</span><span class="nota">MM50 {{ i.mm50|numero:2 }} · MM200 {{ i.mm200|numero:2 }}</span></div>
+    <div class="cartao"><span class="rotulo">RSI 14 · MACD</span><span class="valor">{{ i.rsi14|numero:0 }}</span><span class="nota">histograma MACD {{ i.macd_hist|numero:3 }}{% if i.macd_hist_anterior is not None %} ({% if i.macd_hist > i.macd_hist_anterior %}subindo{% else %}caindo{% endif %}){% endif %}</span></div>
+    <div class="cartao"><span class="rotulo">Suporte / resistência (20 sessões)</span><span class="valor">{{ i.suporte20|numero:2 }} / {{ i.resistencia20|numero:2 }}</span><span class="nota">mínima e máxima das 20 sessões completas anteriores</span></div>
+    <div class="cartao"><span class="rotulo">Volatilidade anualizada</span><span class="valor">{{ i.vol90|numero:0 }}%</span><span class="nota">90 sessões · 30 sessões {{ i.vol30|numero:0 }}%</span></div>
+  </div>
+  <p class="nota">Candles: {{ x.fonte_barras }} ({{ i.n_barras }} sessões, de {{ i.primeira_data|date:"d/m/Y" }} a {{ i.ultima_data|date:"d/m/Y" }}; coletados até {{ x.barras_coletadas_em|date:"d/m H:i" }}). Preço usado: {{ x.preco|preco:x.moeda }} · {{ x.fonte_preco }}{% if x.cotado_em %} às {{ x.cotado_em|date:"d/m H:i" }}{% endif %}.</p>
+  {% endwith %}
+  {% if x.score %}<div class="cartao"><span class="rotulo">Critérios do score</span>{% include "mercado/_score.html" %}</div>{% endif %}
+  {% else %}
+  <p class="estado">Sem candles diários ainda para calcular indicadores. O coletor carrega 1 ano de histórico por rodízio, dentro das cotas da fonte.</p>
+  {% endif %}
+
+  <div class="grade-3">
+    <div class="cartao"><div class="rotulo">Por que pode subir</div>
+      <ul class="itens">{% for i in leitura_exec.sobe %}{% include "mercado/_item.html" %}{% empty %}<li class="texto-2">nenhum sinal favorável pelas regras do portal</li>{% endfor %}</ul></div>
+    <div class="cartao"><div class="rotulo">O que pode impedir</div>
+      <ul class="itens">{% for i in leitura_exec.impede %}{% include "mercado/_item.html" %}{% empty %}<li class="texto-2">nenhum sinal de risco pelas regras do portal</li>{% endfor %}</ul></div>
+    <div class="cartao"><div class="rotulo">Fatos recentes</div>
+      <ul class="itens">{% for i in leitura_exec.fatos %}{% include "mercado/_item.html" %}{% empty %}<li class="texto-2">sem dados</li>{% endfor %}</ul></div>
+  </div>
+
+  {% if x.asset.market != "CRIPTO" %}
+  <div class="grade-3">
+    <div class="cartao"><div class="rotulo">Analistas (opinião de terceiros)</div>
+      {% if x.analistas and x.analistas.total %}{% with a=x.analistas %}
+        <div class="barra-consenso" title="compra / manter / venda"><span class="c-compra" style="flex: {{ a.strong_buy|add:a.buy }}"></span><span class="c-manter" style="flex: {{ a.hold }}"></span><span class="c-venda" style="flex: {{ a.sell|add:a.strong_sell }}"></span></div>
+        <p class="mini">{{ a.strong_buy|add:a.buy }} compra · {{ a.hold }} manter · {{ a.sell|add:a.strong_sell }} venda — maioria: <strong>{{ a.consenso }}</strong></p>
+        <p class="mini texto-2">{{ a.source }}, referência {{ a.period|date:"m/Y" }}{% if x.mudanca_recomendacao_pp is not None %} · compra {{ x.mudanca_recomendacao_pp|numero:0 }} p.p. vs. mês anterior{% endif %}</p>
+      {% endwith %}{% else %}<p class="texto-2 mini">indisponível (chave Finnhub/Alpha Vantage ausente, ETF ou sem cobertura)</p>{% endif %}
+      {% if x.preco_alvo %}<p class="mini">Preço-alvo médio <strong>{{ x.preco_alvo.mean|preco:"USD" }}</strong>{% if x.preco_alvo.low and x.preco_alvo.high %} (faixa {{ x.preco_alvo.low|numero:2 }} – {{ x.preco_alvo.high|numero:2 }}){% endif %} · {{ x.preco_alvo.source }}, {{ x.preco_alvo.reference_date|default:x.preco_alvo.collected_at|date:"d/m/Y" }}</p>{% endif %}
+    </div>
+    <div class="cartao"><div class="rotulo">Fundamentos</div>
+      {% if x.fundamentos %}{% with f=x.fundamentos %}
+        <p class="mini">{% if f.sector %}{{ f.sector }}{% if f.industry %} · {{ f.industry }}{% endif %}<br>{% endif %}P/L {{ f.pe|numero:1 }} · margem líquida {% if f.profit_margin is not None %}{{ f.profit_margin|multiplicar:100|pct:1 }}{% else %}—{% endif %} · ROE {% if f.roe is not None %}{{ f.roe|multiplicar:100|pct:1 }}{% else %}—{% endif %}{% if f.market_cap %} · valor de mercado {{ f.market_cap|compacto }}{% endif %}</p>
+        <p class="mini texto-2">{{ f.source }}, {{ f.collected_at|date:"d/m/Y" }}{% if f.latest_quarter %} · último trimestre {{ f.latest_quarter|date:"d/m/Y" }}{% endif %}</p>
+      {% endwith %}{% else %}<p class="texto-2 mini">indisponível (chave Finnhub/Alpha Vantage ausente ou ETF)</p>{% endif %}
+    </div>
+    <div class="cartao"><div class="rotulo">Resultados trimestrais</div>
+      {% if x.proximo_resultado %}<p class="mini">Próximo: <strong>{{ x.proximo_resultado.date|date:"d/m/Y" }}</strong> {{ x.proximo_resultado.horario_rotulo }}{% if x.proximo_resultado.eps_estimate is not None %} · LPA estimado {{ x.proximo_resultado.eps_estimate|numero:2 }}{% endif %}</p>{% endif %}
+      {% if x.ultimo_resultado %}<p class="mini">Último: {{ x.ultimo_resultado.date|date:"d/m/Y" }} · LPA {{ x.ultimo_resultado.eps_actual|numero:2 }}{% if x.ultimo_resultado.eps_estimate is not None %} vs. estimado {{ x.ultimo_resultado.eps_estimate|numero:2 }}{% endif %}</p>{% endif %}
+      {% if not x.proximo_resultado and not x.ultimo_resultado %}<p class="texto-2 mini">sem calendário (chave Finnhub ausente ou ETF)</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grade-2">
+    <section><h3>Notícias recentes</h3>
+      {% if x.noticias %}<ul class="noticias">{% for n in x.noticias %}<li><a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a><br><span class="mini texto-2">{{ n.publisher|default:n.source }} · {{ n.published_at|date:"d/m H:i" }} · via {{ n.source }}</span></li>{% endfor %}</ul>
+      <p class="nota">Manchetes como publicadas pela fonte; o portal não resume nem classifica sentimento.</p>
+      {% else %}<p class="estado mini">Sem notícias (chave Finnhub ausente ou nada nos últimos dias).</p>{% endif %}
+    </section>
+    <section><h3>Alertas de mercado para {{ x.asset.symbol }}</h3>
+      <p class="acoes-alerta">
+        <a class="chip" href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=perto_min52&valor=5">perto da mínima de 52 semanas</a>
+        <a class="chip" href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=rompe_suporte&valor=20">rompe suporte de 20 sessões</a>
+        <a class="chip" href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=rompe_resist&valor=20">rompe resistência de 20 sessões</a>
+        {% if x.asset.market != "CRIPTO" %}<a class="chip" href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=resultado&valor=7">resultado em 7 dias</a>
+        <a class="chip" href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=recomendacao&valor=10">mudança de recomendação</a>{% endif %}
+        <a class="chip" href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=queda_dia&valor=5">queda de 5% no dia</a>
+      </p>
+    </section>
+  </div>
+  <p class="nota">Sinais e score não constituem recomendação de investimento.</p>
+</section>

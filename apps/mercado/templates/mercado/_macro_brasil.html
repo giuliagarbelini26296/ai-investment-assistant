@@ -1,0 +1,39 @@
+<h2>Contexto macro: Selic, inflação e dólar</h2>
+{% include "mercado/_estado_coleta.html" with estado=estado_macro nome="Selic e inflação" %}
+{% include "mercado/_estado_coleta.html" with estado=estado_focus nome="Focus" %}
+{% with m=macro %}
+<div class="cartoes">
+  <div class="cartao"><span class="rotulo">Selic meta</span><span class="valor">{% if m.selic %}{{ m.selic.valor|numero:2 }}% a.a.{% else %}—{% endif %}</span><span class="nota">{% if m.selic %}desde {{ m.selic.data|date:"d/m/Y" }} · SGS 432 (BCB){% else %}{{ estado_macro.mensagem }}{% endif %}</span></div>
+  <div class="cartao"><span class="rotulo">IPCA 12 meses</span><span class="valor">{% if m.ipca12 %}{{ m.ipca12.valor|numero:2 }}%{% else %}—{% endif %}</span><span class="nota">{% if m.ipca12 %}referência {{ m.ipca12.data|date:"m/Y" }}{% if m.ipca_mes %} · no mês {{ m.ipca_mes.valor|numero:2 }}%{% endif %} · SGS 13522/433{% endif %}</span></div>
+  <div class="cartao"><span class="rotulo">Juro real ex-post</span><span class="valor">{% if m.juro_real is not None %}{{ m.juro_real|numero:2 }}%{% else %}—{% endif %}</span><span class="nota">(1 + Selic) / (1 + IPCA 12m) − 1 · cálculo do portal</span></div>
+  <div class="cartao"><span class="rotulo">Dólar comercial</span><span class="valor">{% if m.dolar.atual %}R$ {{ m.dolar.atual|numero:4 }}{% else %}—{% endif %}</span><span class="nota">{% if m.dolar.atual %}dia {{ m.dolar.variacao_dia_pct|pct }} · 30 dias (PTAX) {{ m.dolar.var_30d_pct|pct }}{% endif %} · <a href="{% url 'mercado_dolar' %}">painel</a></span></div>
+</div>
+{% if m.focus %}
+<div class="rolagem-x">
+<table class="tabela mini">
+  <thead><tr><th>Focus — mediana das projeções</th>{% for f in m.focus.Selic|default:m.focus.IPCA %}<th class="num">fim de {{ f.data_referencia }}</th>{% endfor %}</tr></thead>
+  <tbody>
+    {% for nome, lista in m.focus.items %}<tr><td>{{ nome }}{% if nome == "Câmbio" %} (R$/US$){% else %} (%){% endif %}</td>{% for f in lista %}<td class="num">{{ f.mediana|numero:2 }}</td>{% endfor %}</tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="nota">Boletim Focus de {{ m.focus_data|date:"d/m/Y" }} (BCB): expectativas de instituições de mercado, não previsão do portal.</p>
+{% endif %}
+{% endwith %}
+<h3>Sensibilidade ao dólar (medida no histórico)</h3>
+<div class="rolagem-x">
+<table class="tabela ordenavel mini">
+  <thead><tr><th data-sort="txt">Ação</th><th class="num" data-sort="num">β ao dólar</th><th class="num" data-sort="num">Correlação</th><th class="num" data-sort="num">Pregões</th><th>Leitura</th></tr></thead>
+  <tbody>
+  {% for li in linhas %}{% with s=sensibilidade|obter:li.x.asset.pk %}
+    <tr><td><strong>{{ li.x.asset.symbol }}</strong></td>
+      <td class="num" data-value="{{ s.beta|bruto }}">{% if s.beta is not None %}{{ s.beta|numero:2 }}{% else %}—{% endif %}</td>
+      <td class="num" data-value="{{ s.correlacao|bruto }}">{% if s.correlacao is not None %}{{ s.correlacao|numero:2 }}{% else %}—{% endif %}</td>
+      <td class="num">{{ s.n }}</td>
+      <td class="texto-2">{% if s.beta is None %}histórico insuficiente (mínimo 40 pregões com PTAX){% elif s.correlacao > 0.3 %}tendeu a subir junto com o dólar{% elif s.correlacao < -0.3 %}tendeu a cair quando o dólar subiu{% else %}relação fraca com o dólar no período{% endif %}</td>
+    </tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="nota">β = covariância dos retornos diários da ação com os do PTAX ÷ variância do PTAX (até 250 pregões). β 0,5 = em média, dia de dólar +1% coincidiu com a ação +0,5%. É medida do passado, não previsão. Selic e IPCA mudam pouco no dia a dia, então o portal não estima sensibilidade a eles — mostra o nível atual e as expectativas.</p>

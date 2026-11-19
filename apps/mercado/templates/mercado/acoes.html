@@ -1,0 +1,8 @@
+{% extends "ui/base.html" %}
+{% block title %}Ações {{ mercado_nome }} · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "mercado/_abas.html" %}
+<div id="painel-mercado" data-recarregar="{{ request.path }}?periodo={{ periodo }}&moeda={{ moeda }}&setor={{ setor|urlencode }}&fragmento=1" data-intervalo="120">
+  {% include "mercado/_acoes.html" %}
+</div>
+{% endblock %}

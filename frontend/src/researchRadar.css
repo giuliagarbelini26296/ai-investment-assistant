@@ -1,0 +1,5 @@
+.workbook-research .workbook-grid { table-layout: fixed; min-width: 1100px; white-space: normal; }
+.workbook-research .workbook-grid td { vertical-align: top; line-height: 1.7; overflow-wrap: anywhere; }
+.workbook-research .workbook-grid tr>th:first-child { width: 40px; }
+.workbook-research .workbook-grid a { color: var(--wealth-blue); text-decoration: underline; }
+.workbook-research .workbook-grid small { color: var(--muted); }

@@ -1,0 +1,25 @@
+<div class="rolagem-x">
+<table class="tabela ordenavel tabela-ranking" data-busca-alvo>
+  <thead><tr>
+    <th class="num" data-sort="num">#</th><th data-sort="txt">Ativo</th><th class="num" data-sort="num">Preço atual</th>
+    <th class="num" data-sort="num">Variação</th><th class="num" data-sort="num" title="média diária no período; ≈ volume × fechamento">Volume médio/dia</th>
+    <th class="num" data-sort="num">Máxima</th><th class="num" data-sort="num">Mínima</th><th>7 dias</th>
+  </tr></thead>
+  <tbody>
+  {% for x, p in linhas %}
+    <tr data-busca="{{ x.asset.symbol|lower }} {{ x.asset.name|lower }}">
+      <td class="num">{{ forloop.counter }}</td>
+      <td>{% include "mercado/_ativo_celula.html" %}<br><span class="mini texto-2">{{ x.day_reference_label }}</span></td>
+      <td class="num" data-value="{{ x.preco|bruto }}">{{ x.preco|preco:x.moeda }}<br>{% include "mercado/_atualidade.html" %}</td>
+      <td class="num {{ p.variacao_pct|sinal_classe }}" data-value="{{ p.variacao_pct|bruto }}"><strong>{{ p.variacao_pct|pct }}</strong>{% if p.base_data %}<br><span class="mini texto-2">desde {{ p.base_data|date:"d/m/y" }}</span>{% endif %}</td>
+      <td class="num" data-value="{{ p.volume_financeiro|bruto }}">{% if p.volume_financeiro %}≈ {{ p.volume_financeiro|compacto }}{% else %}—{% endif %}<br><span class="mini texto-2">{{ p.volume_medio|compacto }} un.</span></td>
+      <td class="num" data-value="{{ p.maxima|bruto }}">{{ p.maxima|preco:x.moeda }}</td>
+      <td class="num" data-value="{{ p.minima|bruto }}">{{ p.minima|preco:x.moeda }}</td>
+      <td class="celula-spark" data-spark="{{ x.sparkline|slice:'-8:'|safe_json }}"></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" class="texto-2">{{ vazio }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

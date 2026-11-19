@@ -1,0 +1,122 @@
+<p class="nota ranking-method">Ranking dos ativos monitorados pelo portal; não representa toda a bolsa. Brasil, EUA e cripto podem ter referências de horários diferentes: confira o pregão, a fonte e a coleta de cada linha. Cotações vencidas ou sem referência diária confirmada ficam fora das listas. Sem movimento (0%) não entra em altas ou quedas.</p>
+{% if faltam_iniciais %}
+<div class="aviso">
+  Ativos iniciais desta aba ainda não cadastrados: <strong>{{ faltam_iniciais|join:", " }}</strong>.
+  <form method="post" action="{% if mercado_nome == 'EUA' %}{% url 'mercado_iniciais' 'eua' %}{% else %}{% url 'mercado_iniciais' 'brasil' %}{% endif %}" class="inline">{% csrf_token %}<button type="submit" class="botao">Incluir agora</button></form>
+</div>
+{% endif %}
+{% if mercado_nome == "Brasil" %}
+<div class="aviso">
+  <strong>Fonte da B3: brapi.</strong>
+  {% if brapi_sem_token %}Sem token no .env: só PETR4, VALE3 e ITUB4 respondem{% if precisam_token %} — {{ precisam_token|join:", " }} precisam do token gratuito (brapi.dev → BRAPI_API_KEY){% endif %}.{% endif %}
+  {% if brapi_limitado %}O plano limita o histórico a 3 meses: 6 e 12 meses e mínima de 52 semanas ficam indisponíveis até o portal acumular os próprios candles diários (ou com o plano Startup/Pro).{% endif %}
+  Cotações com atraso de ~30 min no plano Gratuito (declarado pela fonte). Fundamentos, preço-alvo e proventos aparecem quando o plano libera; recurso fora do plano é tentado de novo após 7 dias.
+</div>
+{% endif %}
+
+<div class="barra-tabela">
+  <div class="filtros-rapidos">
+    {% for k, rot in periodos %}<a class="chip{% if k == periodo %} ativo{% endif %}" href="?periodo={{ k }}&moeda={{ moeda }}&setor={{ setor|urlencode }}">{{ rot }}</a>{% endfor %}
+  </div>
+  <div class="filtros-rapidos">
+    {% if mercado_nome == "EUA" %}
+    <span class="texto-2 mini">Moeda:</span>
+    <a class="chip{% if moeda == 'USD' %} ativo{% endif %}" href="?periodo={{ periodo }}&moeda=USD&setor={{ setor|urlencode }}">US$</a>
+    <a class="chip{% if moeda == 'BRL' %} ativo{% endif %}" href="?periodo={{ periodo }}&moeda=BRL&setor={{ setor|urlencode }}">R$</a>
+    {% endif %}
+    <input type="search" class="busca-mini" data-busca placeholder="empresa ou ticker…" aria-label="Buscar empresa ou ticker">
+  </div>
+</div>
+{% if moeda != "USD" and mercado_nome == "EUA" %}<p class="nota">Em R$: preço × câmbio atual ({% if cambio.atual %}USD/BRL {{ cambio.atual|numero:4 }} · {{ cambio.rotulo }}{% else %}indisponível{% endif %}); retorno do período = retorno em US$ combinado com a variação do câmbio (PTAX da data-base → câmbio atual). "1 dia" fica em US$.</p>{% endif %}
+
+<div class="rankings">
+  <section>
+    <h2 class="alta">▲ Maiores altas — {{ periodo_rotulo }}</h2>
+    {% include "mercado/_ranking_mercado.html" with linhas_r=altas vazio="nenhuma ação em alta no período" %}
+  </section>
+  <section>
+    <h2 class="queda">▼ Maiores quedas — {{ periodo_rotulo }}</h2>
+    {% include "mercado/_ranking_mercado.html" with linhas_r=quedas vazio="nenhuma ação em queda no período" %}
+  </section>
+</div>
+{% if sem_dado %}<p class="nota">Fora do ranking por histórico, cotação vencida ou referência não confirmada para {{ periodo_rotulo }}: {% for li in sem_dado %}{{ li.x.asset.symbol }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+
+<div class="grade-2">
+  <section class="cartao">
+    <div class="rotulo">Perto da mínima de 52 semanas (até 10% acima)</div>
+    <ul class="itens">{% for x in perto_minima %}<li>{% include "mercado/_estrela.html" with asset=x.asset %} <a href="{% url 'asset_detail' x.asset.pk %}"><strong>{{ x.asset.symbol }}</strong></a> — {{ x.ind.dist_minima_52s_pct|pct:1 }} acima da mínima ({{ x.ind.minima_52s|numero:2 }}){% if not x.ind.janela_52s_completa %} <span class="texto-2">· janela {{ x.ind.janela_52s_dias }} d</span>{% endif %}</li>{% empty %}<li class="texto-2">nenhuma (ou histórico insuficiente)</li>{% endfor %}</ul>
+    {% if perto_minima_parcial %}
+    <h3 class="mini">Perto da mínima do histórico disponível</h3>
+    <ul class="itens">{% for x in perto_minima_parcial %}<li><a href="{% url 'asset_detail' x.asset.pk %}">{{ x.asset.symbol }}</a> — {{ x.ind.dist_minima_52s_pct|pct:1 }} acima da mínima · histórico de {{ x.ind.janela_52s_dias }} dias</li>{% endfor %}</ul>
+    <p class="nota">Janela menor que 52 semanas; compare apenas períodos equivalentes.</p>
+    {% endif %}
+    <p class="nota">Estar perto da mínima é um fato de preço, não sinal de compra.</p>
+  </section>
+  <section class="cartao">
+    <div class="rotulo">Calendário — próximos 45 dias</div>
+    <ul class="itens">
+      {% for e in resultados %}<li><span class="rotulo-tipo tipo-fato">Resultado</span> <strong>{{ e.asset.symbol }}</strong> {{ e.date|date:"d/m (D)" }} {{ e.horario_rotulo }}{% if e.eps_estimate is not None %} · LPA estimado {{ e.eps_estimate|numero:2 }}{% endif %} <span class="mini texto-2">({{ e.source }})</span></li>{% endfor %}
+      {% for p in proventos %}<li><span class="rotulo-tipo tipo-projecao">{{ p.tipo|title }}</span> <strong>{{ p.asset.symbol }}</strong> {{ p.valor|numero:4 }} {{ p.moeda }}/ação{% if p.data_com %} · data-com {{ p.data_com|date:"d/m" }}{% endif %}{% if p.data_pagamento %} · pagamento {{ p.data_pagamento|date:"d/m" }}{% endif %} <span class="mini texto-2">({{ p.source }})</span></li>{% endfor %}
+      {% if not resultados and not proventos %}<li class="texto-2">{% if mercado_nome == "EUA" %}sem eventos (resultados vêm da Finnhub; proventos da Alpha Vantage){% else %}sem eventos: não há fonte gratuita confirmada para a agenda de resultados da B3; datas de proventos vêm da brapi (plano Startup/Pro){% endif %}</li>{% endif %}
+    </ul>
+  </section>
+</div>
+
+<h2>Empresas <span class="mini texto-2">— {{ total }} {% if mercado_nome == "EUA" %}na NYSE/Nasdaq{% else %}na B3{% endif %} monitoradas · clique no título para ordenar</span></h2>
+<div class="rolagem-x">
+<table class="tabela ordenavel tabela-mercado" data-busca-alvo>
+  <thead><tr>
+    <th data-sort="txt">Empresa</th><th class="num" data-sort="num">Cotação ({{ moeda }})</th><th class="num" data-sort="num">{{ periodo_rotulo }}</th>
+    <th class="num" data-sort="num">52 sem.<br><span class="mini texto-2">mín. / máx.</span></th>
+    <th class="num" data-sort="num">P/L</th>
+    {% if mercado_nome == "EUA" %}<th class="num" data-sort="num">EV/EBITDA</th><th class="num" data-sort="num" title="crescimento da receita (trimestre vs. mesmo trimestre do ano anterior)">Receita a/a</th>
+    {% else %}<th class="num" data-sort="num">P/VP</th><th class="num" data-sort="num">ROE</th><th class="num" data-sort="num" title="dívida líquida / EBITDA">DL/EBITDA</th><th class="num" data-sort="num">DY 12m</th>{% endif %}
+    <th class="num" data-sort="num">Preço-alvo<br><span class="mini texto-2">potencial · analistas</span></th><th data-sort="num">Score</th><th>Evento</th>
+  </tr></thead>
+  <tbody>
+  {% for li in linhas %}{% include "mercado/_linha_mercado.html" %}{% empty %}<tr><td colspan="12" class="texto-2">Nenhuma ação cadastrada neste mercado.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="nota">Valuation: {% if mercado_nome == "EUA" %}P/L, EV/EBITDA e crescimento da receita (trimestre vs. mesmo trimestre do ano anterior, quando a fonte informa) da Alpha Vantage/Finnhub{% else %}P/L, P/VP, ROE e dividend yield da brapi; * dívida líquida/EBITDA calculada pelo portal (dívida total − caixa) / EBITDA; DY 12m = proventos com data-com em 12 meses / preço atual quando registrados{% endif %}. Preço-alvo e recomendações são opinião de analistas. {{ aviso_metodologia }}</p>
+
+{% if mercado_nome == "Brasil" %}{% include "mercado/_macro_brasil.html" %}{% endif %}
+
+<h2>Comparação no mesmo setor</h2>
+<div class="filtros-rapidos">
+  {% for g in grupos %}<a class="chip{% if g.setor == setor %} ativo{% endif %}" href="?periodo={{ periodo }}&moeda={{ moeda }}&setor={{ g.setor|urlencode }}">{{ g.setor }} ({{ g.membros|length }})</a>{% endfor %}
+</div>
+{% if grupo_setor %}
+<div class="rolagem-x">
+<table class="tabela ordenavel">
+  <thead><tr><th data-sort="txt">Empresa</th><th class="num" data-sort="num">12 meses</th>{% for c, rot, melhor in metricas_setor %}<th class="num" data-sort="num" title="melhor = {{ melhor }}">{{ rot }}</th>{% endfor %}<th class="num" data-sort="num">DY</th><th data-sort="num">Score</th></tr></thead>
+  <tbody>
+    {% for x in grupo_setor.membros %}
+    <tr>
+      <td>{% include "mercado/_ativo_celula.html" with sem_nome=1 %}</td>
+      <td class="num {{ x|obter_variacao:'12m'|sinal_classe }}" data-value="{{ x|obter_variacao:'12m'|bruto }}">{{ x|obter_variacao:'12m'|pct:1 }}</td>
+      {% for c, rot, melhor in metricas_setor %}{% with v=x.fundamentos|obter_attr:c %}<td class="num" data-value="{{ v|bruto }}">{% if v is None or v == "" %}—{% elif c == "roe" or c == "revenue_growth" %}{{ v|multiplicar:100|pct:1 }}{% else %}{{ v|numero:2 }}{% endif %}</td>{% endwith %}{% endfor %}
+      {% with dy=x.dy %}<td class="num" data-value="{{ dy.0|bruto }}">{% if dy.0 is not None %}{{ dy.0|numero:1 }}%{% else %}—{% endif %}</td>{% endwith %}
+      <td data-value="{{ x.score.total|default:0 }}">{% include "mercado/_score.html" %}</td>
+    </tr>
+    {% endfor %}
+    <tr class="linha-mediana">
+      <td><strong>Mediana do setor</strong></td>
+      <td class="num">{% if grupo_setor.medianas.var12 is None %}—{% else %}{{ grupo_setor.medianas.var12|pct:1 }}{% endif %}</td>
+      {% for c, rot, melhor in metricas_setor %}{% with v=grupo_setor.medianas|obter:c %}<td class="num">{% if v is None %}—{% elif c == "roe" or c == "revenue_growth" %}{{ v|multiplicar:100|pct:1 }}{% else %}{{ v|numero:2 }}{% endif %}</td>{% endwith %}{% endfor %}
+      <td class="num">{% if grupo_setor.medianas.dy is None %}—{% else %}{{ grupo_setor.medianas.dy|numero:1 }}%{% endif %}</td><td></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="nota">Setor conforme o cadastro do ativo (editável em Ativos). Mediana simples das empresas monitoradas do setor; não é índice setorial. Inclua concorrentes em Universo para ampliar a comparação.</p>
+{% endif %}
+
+<h2>Notícias e eventos</h2>
+{% if noticias %}
+<ul class="noticias">{% for n in noticias %}<li><strong>{{ n.asset.symbol }}</strong> · <a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a><br><span class="mini texto-2">{{ n.publisher|default:n.source }} · {{ n.published_at|date:"d/m H:i" }} · via {{ n.source }}</span></li>{% endfor %}</ul>
+<p class="nota">Manchetes como publicadas pela fonte; o portal não resume nem classifica sentimento.</p>
+{% else %}
+<p class="estado">{% if mercado_nome == "EUA" %}Sem notícias: precisa da chave Finnhub no .env.{% else %}Sem fonte gratuita confirmada de notícias da B3. Veja o contexto macro acima e as notícias de câmbio no painel do Dólar.{% endif %}</p>
+{% endif %}
+<p class="nota">Atualizado em {{ agora|date:"d/m/Y H:i" }}. Cada cotação mostra fonte e horário ao lado do preço (ponto verde = dentro do intervalo de coleta; cinza = mercado fechado/atraso não declarado; vermelho = desatualizado).</p>

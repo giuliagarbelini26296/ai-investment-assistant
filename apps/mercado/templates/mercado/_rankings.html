@@ -1,0 +1,24 @@
+{% include "mercado/_mercado_filtro.html" %}
+<p class="nota ranking-method">Ranking dos ativos monitorados pelo portal; não representa toda a bolsa. Brasil, EUA e cripto podem ter referências de horários diferentes: confira o pregão, a fonte e a coleta de cada linha. Cotações vencidas ou sem referência diária confirmada ficam fora das listas. Sem movimento (0%) não entra em altas ou quedas.</p>
+<div class="barra-tabela">
+  <div class="filtros-rapidos">
+    {% for k, rot in periodos %}<a class="chip{% if k == periodo %} ativo{% endif %}" href="?periodo={{ k }}&tipo={{ tipo }}&mercado={{ mercado_filtro }}">{{ rot }}</a>{% endfor %}
+  </div>
+  <div class="filtros-rapidos">
+    {% for k, rot in tipos %}<a class="chip{% if k == tipo %} ativo{% endif %}" href="?periodo={{ periodo }}&tipo={{ k }}&mercado={{ mercado_filtro }}">{{ rot }}</a>{% endfor %}
+    <input type="search" class="busca-mini" data-busca placeholder="buscar…" aria-label="Buscar ativo">
+  </div>
+</div>
+<div class="rankings">
+  <section>
+    <h2 class="alta">▲ Maiores altas — {{ periodo_rotulo }}</h2>
+    {% include "mercado/_tabela_ranking.html" with linhas=altas vazio="nenhum ativo em alta no período" %}
+  </section>
+  <section>
+    <h2 class="queda">▼ Maiores quedas — {{ periodo_rotulo }}</h2>
+    {% include "mercado/_tabela_ranking.html" with linhas=quedas vazio="nenhum ativo em queda no período" %}
+  </section>
+</div>
+{% if sem_dado %}<p class="nota">Fora do ranking por histórico insuficiente, cotação vencida ou referência não confirmada: {% for x in sem_dado %}{{ x.asset.symbol }}{% if not forloop.last %}, {% endif %}{% endfor %}. O coletor carrega 1 ano de candles por rodízio, dentro das cotas das fontes.</p>{% endif %}
+<p class="nota">Variação = preço atual vs. fechamento da última sessão em ou antes do início do período (1 dia: variação informada pela fonte — fechamento anterior para ações, 24 h para cripto). Máxima/mínima e volume são dos candles diários do período. Volume financeiro é aproximação (volume × fechamento). Ordene clicando nos títulos das colunas.</p>
+<p class="nota">{{ aviso_metodologia }}</p>

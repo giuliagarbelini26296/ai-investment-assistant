@@ -1,0 +1,6 @@
+{% if noticias_destaques %}
+<section class="noticias-destaques" aria-label="Notícias da carteira e favoritos">
+  <div class="noticias-resultado"><div><span class="noticias-sobretitulo">Acompanhe o contexto</span><h2>Notícias da sua carteira e favoritos</h2></div><a href="{% url 'noticias:index' %}">Abrir central →</a></div>
+  <div class="noticias-grade-destaques">{% for n in noticias_destaques %}{% include "noticias/_card.html" with compact=True %}{% endfor %}</div>
+</section>
+{% endif %}

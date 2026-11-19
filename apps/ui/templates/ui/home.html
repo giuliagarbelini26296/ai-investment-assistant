@@ -1,0 +1,19 @@
+{% extends "ui/base.html" %}
+{% block title %}Carteira · {{ portal.NOME }}{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>Carteira <small class="texto-2">em {{ moeda }}</small></h1>
+  <div class="acoes-carteira">
+    <span class="ao-vivo" id="ao-vivo" data-ultima="{% if ultima_coleta %}{{ ultima_coleta|date:'c' }}{% endif %}" title="a página se atualiza sozinha a cada 60 s">
+      <span class="pulso" aria-hidden="true"></span><span id="ao-vivo-texto">{% if ultima_coleta %}dados de {{ ultima_coleta|date:"H:i" }}{% else %}sem coleta ainda{% endif %}</span>
+    </span>
+    <form method="post" action="{% url 'coletar_agora' %}" id="form-coletar">{% csrf_token %}<button type="submit" class="chip" title="pede ao coletor para buscar cotações agora">↻ Atualizar agora</button></form>
+    <a class="botao" href="{% url 'asset_create' %}">Novo ativo</a>
+  </div>
+</div>
+
+<div id="carteira" data-url="{% url 'carteira_fragmento' %}" data-alertas="{{ alertas_ativos }}">
+{% include "ui/_carteira.html" %}
+</div>
+{% include "noticias/_highlights.html" %}
+{% endblock %}

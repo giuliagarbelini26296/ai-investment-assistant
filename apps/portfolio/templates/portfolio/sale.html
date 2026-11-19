@@ -1,0 +1,21 @@
+{% extends 'ui/base.html' %}{% load static %}
+{% block title %}Registrar venda · Portal de Investimentos{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'portal_resources/purchase.css' %}">
+<div class="cabecalho-pagina"><div><div class="purchase-eyebrow">CARTEIRA {{ account|upper }}</div><h1>Registrar venda realizada</h1><p class="nota">Use a quantidade e o preço executados pela corretora. O portal atualiza o saldo e separa o resultado realizado do ganho em aberto.</p></div></div>
+<div class="purchase-info">Este formulário registra uma execução já concluída. Não envia ordens. Ordens abertas, rejeitadas e canceladas não são vendas realizadas.</div>
+{% if form.non_field_errors %}<div class="purchase-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+{% if preview %}
+<section class="purchase-review"><h2>Conferir {{ preview.symbol }} · {{ preview.currency }}</h2>
+<div class="purchase-summary">
+<section><span>Antes da venda</span><strong>{{ preview.before_quantity|normalize_decimal }} papéis</strong><p>Custo {{ preview.before_cost|moeda:preview.currency }}</p></section>
+<section><span>Venda realizada</span><strong>{{ preview.quantity|normalize_decimal }} papéis</strong><p>Valor bruto {{ preview.gross_proceeds|moeda:preview.currency }}</p><p>Custo dos papéis vendidos {{ preview.allocated_cost|moeda:preview.currency }}</p><p>Resultado bruto {{ preview.gross_gain|moeda:preview.currency }}</p>{% if preview.fees != None %}<p>Resultado após taxas {{ preview.net_gain|moeda:preview.currency }} · antes de impostos</p>{% else %}<p>Taxas pendentes: resultado líquido ainda não apurado.</p>{% endif %}</section>
+<section class="purchase-result"><span>Posição restante</span><strong>{{ preview.remaining_quantity|normalize_decimal }} papéis</strong><p>Custo {{ preview.remaining_cost|moeda:preview.currency }}</p><p>Preço médio {% if preview.remaining_average %}{{ preview.remaining_average|moeda:preview.currency }}{% else %}posição encerrada{% endif %}</p></section>
+</div>
+<form method="post">{% csrf_token %}{% for field in form %}<input type="hidden" name="{{ field.name }}" value="{{ field.value|default_if_none:'' }}">{% endfor %}
+<input type="hidden" name="review_signature" value="{{ review_signature }}"><label class="purchase-ack"><input type="checkbox" name="ack" value="yes" required> Esta venda foi executada e ainda não está incluída na posição acima.</label><div class="acoes"><button class="botao" name="action" value="confirm">Confirmar registro</button><button class="chip" name="action" value="edit" formnovalidate>Corrigir</button></div></form></section>
+{% else %}
+<form method="post" class="formulario purchase-entry">{% csrf_token %}{{ form.submission_key }}<div class="purchase-step">1 · INFORMAR EXECUÇÃO</div>{% for field in form.visible_fields %}<div class="campo">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endfor %}<div class="acoes"><button class="botao" name="action" value="review">Conferir venda</button><a href="/?carteira={{ account }}">Voltar à carteira</a></div></form>
+{% endif %}
+<section class="purchase-review"><h2>Vendas registradas · {{ account|title }}</h2><p class="nota">Resultado bruto realizado = valor da venda − custo proporcional dos papéis. Impostos não apurados. O valor da venda não é todo lucro nem comprova saldo disponível.</p><div style="overflow-x:auto"><table><thead><tr><th>Data</th><th>Ativo</th><th>Papéis</th><th>Preço executado</th><th>Venda bruta</th><th>Custo baixado</th><th>Resultado bruto</th><th>Após taxas / antes de impostos</th></tr></thead><tbody>{% for s in history %}<tr><td>{{ s.trade_date|date:'d/m/Y' }}</td><td>{{ s.asset.symbol }}</td><td>{{ s.quantity|normalize_decimal }}</td><td>{{ s.unit_price|normalize_decimal }} {{ s.currency }}</td><td>{{ s.gross_proceeds|moeda:s.currency }}</td><td>{{ s.allocated_cost|moeda:s.currency }}</td><td>{{ s.gross_gain|moeda:s.currency }}</td><td>{% if s.fees != None %}{{ s.net_gain|moeda:s.currency }}{% else %}Taxas pendentes{% endif %}</td></tr>{% empty %}<tr><td colspan="8">Nenhuma venda registrada nesta carteira.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

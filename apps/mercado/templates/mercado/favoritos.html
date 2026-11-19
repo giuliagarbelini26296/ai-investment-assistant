@@ -1,0 +1,8 @@
+{% extends "ui/base.html" %}{% load static %}
+{% block title %}Favoritos · {{ portal.NOME }}{% endblock %}
+{% block content %}
+{% include "mercado/_abas.html" %}
+<div id="painel-mercado" data-recarregar="{{ request.path }}?periodo={{ periodo }}&grupo={{ grupo_id }}&fragmento=1" data-intervalo="120">
+  {% include "mercado/_favoritos.html" %}
+</div>
+{% endblock %}

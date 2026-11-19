@@ -1,0 +1,1 @@
+<span class="ponto ponto-{{ x.atualidade.estado }}" title="{{ x.atualidade.descricao }}"></span><span class="mini texto-2">{{ x.atualidade.rotulo }} · {% if x.cotado_em %}coleta {{ x.cotado_em|date:"d/m H:i" }}{% else %}sem coleta{% endif %} · {{ x.fonte_preco|default:"—" }}</span>

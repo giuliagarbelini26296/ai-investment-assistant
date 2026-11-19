@@ -1,0 +1,93 @@
+<div class="cartoes">
+  <div class="cartao"><div class="rotulo">Favoritos</div><div class="valor">{{ lista|length }}</div><div class="nota">{% if grupo_id %}no grupo selecionado{% else %}em {{ grupos|length }} grupo(s){% endif %}</div></div>
+  <div class="cartao"><div class="rotulo">Maior alta ({{ periodo_rotulo }})</div>{% if melhor %}<div class="valor alta">{{ melhor.0.asset.symbol }} {{ melhor.1|pct:1 }}</div>{% else %}<div class="valor texto-2">—</div>{% endif %}</div>
+  <div class="cartao"><div class="rotulo">Maior queda ({{ periodo_rotulo }})</div>{% if pior %}<div class="valor queda">{{ pior.0.asset.symbol }} {{ pior.1|pct:1 }}</div>{% else %}<div class="valor texto-2">—</div>{% endif %}</div>
+  <div class="cartao"><div class="rotulo">Melhor score pela metodologia</div>{% if melhor_op %}<div class="valor">{{ melhor_op.asset.symbol }} · {{ melhor_op.score.total }}</div><div class="nota">risco {{ melhor_op.score.risco }} · {{ melhor_op.score.perspectiva }}</div>{% else %}<div class="valor texto-2">—</div><div class="nota">nenhum favorito com analistas/fundamentos avaliados</div>{% endif %}</div>
+  <div class="cartao"><div class="rotulo">Alertas de preço ativos</div><div class="valor">{{ regras_ativas }}</div><div class="nota"><a href="{% url 'alertas' %}">ver alertas</a></div></div>
+</div>
+
+<div class="barra-tabela">
+  <div class="filtros-rapidos">
+    <a class="chip{% if not grupo_id %} ativo{% endif %}" href="?periodo={{ periodo }}">Todos</a>
+    {% for g in grupos %}<a class="chip{% if grupo_id == g.pk|stringformat:'s' %} ativo{% endif %}" href="?periodo={{ periodo }}&grupo={{ g.pk }}">{{ g.nome }}</a>{% endfor %}
+    <details class="ajuste-inline"><summary class="chip">+ grupo</summary>
+      <form method="post" action="{% url 'favorito_grupo_criar' %}" class="ajuste-form">{% csrf_token %}<input name="nome" maxlength="40" placeholder="ex.: Big Techs" required><button class="botao" type="submit">criar</button></form>
+    </details>
+  </div>
+  <div class="filtros-rapidos">
+    {% for k, rot in periodos %}<a class="chip{% if k == periodo %} ativo{% endif %}" href="?periodo={{ k }}&grupo={{ grupo_id }}">{{ rot }}</a>{% endfor %}
+  </div>
+</div>
+
+<form method="post" action="{% url 'favorito_adicionar' %}" class="filtros adicionar-favorito">
+  {% csrf_token %}
+  <input name="simbolo" placeholder="ticker (ex.: AAPL, SPY, ETH)" required maxlength="20" aria-label="Ticker">
+  <select name="mercado" aria-label="Mercado"><option value="NASDAQ">Nasdaq</option><option value="NYSE">NYSE</option><option value="CRIPTO">Cripto</option><option value="B3">B3</option></select>
+  <label class="mini"><input type="checkbox" name="etf" value="1"> é ETF</label>
+  {% if grupos %}<select name="grupo" aria-label="Grupo"><option value="">sem grupo</option>{% for g in grupos %}<option value="{{ g.pk }}">{{ g.nome }}</option>{% endfor %}</select>{% endif %}
+  <button type="submit" class="botao">☆ Adicionar aos favoritos</button>
+  <span class="mini texto-2">ou clique na ☆ em qualquer lista do portal</span>
+</form>
+
+{% if lista %}
+<div class="rolagem-x">
+<table class="tabela ordenavel tabela-favoritos">
+  <thead><tr>
+    <th class="sel"><span class="oculta">comparar</span></th>
+    <th data-sort="txt">Ativo</th><th class="num" data-sort="num">Cotação</th><th class="num" data-sort="num">{{ periodo_rotulo }}</th>
+    <th class="num" data-sort="num" title="máxima e mínima de 52 semanas e a distância do preço atual">52 semanas<br><span class="mini texto-2">máx. · mín.</span></th>
+    <th class="num" data-sort="num">Preço-alvo<br><span class="mini texto-2">potencial</span></th><th data-sort="num">Score</th>
+    <th>Notícias</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for x in lista %}{% with f=fav_por_asset|obter:x.asset.pk %}
+    <tr>
+      <td class="sel"><input type="checkbox" class="sel-comparar-fav" value="{{ x.asset.pk }}" data-simbolo="{{ x.asset.symbol }}" {% if x.asset.pk in ids_comparar %}checked{% endif %} aria-label="comparar {{ x.asset.symbol }}"></td>
+      <td>{% include "mercado/_ativo_celula.html" %}{% if f.grupos.all %}<div class="mini texto-2">{% for g in f.grupos.all %}{{ g.nome }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}</td>
+      <td class="num" data-value="{{ x.preco|bruto }}">{{ x.preco|preco:x.moeda }}<br>{% include "mercado/_atualidade.html" %}</td>
+      {% with v=x|obter_variacao:periodo %}<td class="num {{ v|sinal_classe }}" data-value="{{ v|bruto }}"><strong>{{ v|pct }}</strong></td>{% endwith %}
+      <td class="num" data-value="{{ x.ind.dist_maxima_52s_pct|bruto }}">{% if x.ind %}{{ x.ind.maxima_52s|numero:2 }} <span class="mini queda">{{ x.ind.dist_maxima_52s_pct|pct:1 }}</span><br>{{ x.ind.minima_52s|numero:2 }} <span class="mini alta">{{ x.ind.dist_minima_52s_pct|pct:1 }}</span>{% if not x.ind.janela_52s_completa %}<br><span class="mini texto-2">janela {{ x.ind.janela_52s_dias }} d</span>{% endif %}{% else %}<span class="texto-2">—</span>{% endif %}</td>
+      <td class="num" data-value="{{ x.score.potencial_pct|bruto }}">{% if x.preco_alvo %}{{ x.preco_alvo.mean|preco:"USD" }}<br><span class="{{ x.score.potencial_pct|sinal_classe }}">{{ x.score.potencial_pct|pct:1 }}</span> <span class="mini texto-2">{{ x.preco_alvo.source }}</span>{% else %}<span class="texto-2">—</span>{% endif %}</td>
+      <td data-value="{{ x.score.total|default:0 }}">{% include "mercado/_score.html" %}</td>
+      <td class="mini">{% if x.noticias %}<details class="noticias-fav"><summary>{{ x.noticias|length }}{% if x.noticias_recentes %} · {{ x.noticias_recentes }} em 48 h{% endif %}</summary><ul class="noticias">{% for n in x.noticias %}<li><a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.headline|truncatechars:90 }}</a> <span class="texto-2">{{ n.published_at|date:"d/m H:i" }} · {{ n.publisher|default:n.source }}</span></li>{% endfor %}</ul><p class="texto-2">Sentimento: não informado pela fonte.</p></details>{% else %}<span class="texto-2">—</span>{% endif %}</td>
+      <td class="acoes-linha mini">
+        <a href="{% url 'regra_nova' %}?ativo={{ x.asset.pk }}&tipo=abaixo{% if x.preco %}&valor={{ x.preco|numero:2 }}{% endif %}&currency={% if x.moeda == 'BRL' %}BRL{% else %}USD{% endif %}" title="criar alerta para {{ x.asset.symbol }}">+ alerta</a>
+        {% if grupos %}<details class="ajuste-inline"><summary>grupos</summary><div class="ajuste-form">{% for g in grupos %}<button type="button" class="chip mini{% if g in f.grupos.all %} ativo{% endif %}" data-grupo-url="{% url 'favorito_grupo' f.pk %}" data-grupo="{{ g.pk }}">{{ g.nome }}</button>{% endfor %}</div></details>{% endif %}
+        <form method="post" action="{% url 'favorito_mover' f.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="link" name="direcao" value="cima" title="subir na lista">↑</button> <button class="link" name="direcao" value="baixo" title="descer na lista">↓</button></form>
+      </td>
+    </tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<section class="cartao">
+  <div class="barra-grafico"><strong>Comparar favoritos (base 100)</strong><span class="espaco"></span>
+    {% for k in "1m,6m,1a"|split %}<button type="button" class="chip{% if k == '6m' %} ativo{% endif %}" data-comp-fav="{{ k }}">{{ k|upper }}</button>{% endfor %}
+  </div>
+  <div class="grafico alto"><canvas id="grafico-comparacao-fav" data-url-modelo="{% url 'historico_json' 0 %}"></canvas></div>
+  <p class="nota">Marque até 6 favoritos na primeira coluna. Cada série começa em 100 no início do período (moeda nativa de cada ativo; candles de uma fonte por ativo).</p>
+</section>
+
+<section>
+  <h2>Analisar meus favoritos</h2>
+  <p class="nota">Cada pergunta usa uma regra fixa, descrita abaixo do título. Leitura do que os dados mostram — não indica compra ou venda.</p>
+  <div class="grade-3">
+    <div class="cartao"><div class="rotulo">1. Perto de possíveis pontos de entrada</div><p class="mini texto-2">até 3% acima do suporte de 20 sessões ou até 10% da mínima de 52 semanas, com RSI ≤ 40</p>
+      <ul class="itens">{% for a in analise.entrada %}<li><strong>{{ a.leitura.asset.symbol }}</strong> — {{ a.motivo }}</li>{% empty %}<li class="texto-2">nenhum</li>{% endfor %}</ul></div>
+    <div class="cartao"><div class="rotulo">2. Maior potencial (analistas e score)</div><p class="mini texto-2">distância até o preço-alvo médio; sem alvo, score ≥ 50 com analistas/fundamentos</p>
+      <ul class="itens">{% for a in analise.potencial %}<li><strong>{{ a.leitura.asset.symbol }}</strong> — {{ a.motivo }}</li>{% empty %}<li class="texto-2">nenhum com preço-alvo disponível</li>{% endfor %}</ul></div>
+    <div class="cartao"><div class="rotulo">3. Tendência</div><p class="mini texto-2">alta: preço &gt; MM50 &gt; MM200 · baixa: preço &lt; MM50 &lt; MM200</p>
+      <ul class="itens">{% for a in analise.tendencia_alta %}<li class="alta">▲ <strong>{{ a.leitura.asset.symbol }}</strong></li>{% endfor %}{% for a in analise.tendencia_baixa %}<li class="queda">▼ <strong>{{ a.leitura.asset.symbol }}</strong></li>{% endfor %}{% if not analise.tendencia_alta and not analise.tendencia_baixa %}<li class="texto-2">todos laterais ou sem 200 sessões</li>{% endif %}</ul></div>
+    <div class="cartao"><div class="rotulo">4. Mudanças relevantes</div><p class="mini texto-2">recomendações ±10 p.p., resultado em 14 dias, 3+ notícias em 48 h, movimento semanal fora do padrão</p>
+      <ul class="itens">{% for a in analise.mudancas %}<li><strong>{{ a.leitura.asset.symbol }}</strong> — {{ a.motivo }}</li>{% empty %}<li class="texto-2">nenhuma</li>{% endfor %}</ul></div>
+    <div class="cartao"><div class="rotulo">5. Exigem atenção (risco)</div><p class="mini texto-2">risco alto pela régua do portal ou rompimento do suporte de 20 sessões</p>
+      <ul class="itens">{% for a in analise.atencao %}<li><strong>{{ a.leitura.asset.symbol }}</strong> — {{ a.motivo }}</li>{% empty %}<li class="texto-2">nenhum</li>{% endfor %}</ul></div>
+  </div>
+  <p class="nota">{{ aviso_metodologia }}</p>
+</section>
+{% else %}
+<p class="estado">Nenhum favorito{% if grupo_id %} neste grupo{% endif %}. Adicione pelo formulário acima, pela ☆ nas listas do Mercado e da Carteira, ou {% if universo_vazio %}carregue a lista sugerida (cria os grupos Big Techs, ETFs e Criptomoedas){% else %}veja o <a href="{% url 'mercado_universo' %}">Universo</a>{% endif %}.</p>
+<p class="nota">{{ aviso_metodologia }}</p>
+{% endif %}
+{% for g in grupos %}{% if grupo_id == g.pk|stringformat:'s' %}<form method="post" action="{% url 'favorito_grupo_excluir' g.pk %}" class="mini">{% csrf_token %}<button class="link" type="submit" onclick="return confirm('Excluir o grupo {{ g.nome|escapejs }}? Os favoritos continuam.')">excluir o grupo "{{ g.nome }}"</button></form>{% endif %}{% endfor %}
